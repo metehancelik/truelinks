@@ -4,9 +4,11 @@ version = "0.1.0"
 description = "Lease and property-issue agents for a property owner"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.142.2",
     "pydantic>=2.13",
     "pydantic-ai-slim[openai]>=2.54",
     "pydantic-settings>=2.10",
+    "uvicorn[standard]>=0.54.0",
 ]
 
 [dependency-groups]
@@ -14,6 +16,7 @@ dev = [
     "pytest>=9",
     "ruff>=0.16",
     "pyright>=1.1.414",
+    "httpx>=0.28.1",
 ]
 
 [build-system]

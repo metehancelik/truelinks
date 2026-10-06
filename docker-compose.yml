@@ -1,0 +1,29 @@
+# Production shape: nothing is published on the host. A reverse proxy
+# (Coolify's Traefik) routes the public domain to `web` on port 3000.
+# For local use, docker-compose.override.yml adds the host ports.
+services:
+  api:
+    build: ./backend
+    environment:
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-ollama}
+      LLM_TEXT_MODEL: ${LLM_TEXT_MODEL:-gemma4:12b}
+      LLM_VISION_MODEL: ${LLM_VISION_MODEL:-}
+      LLM_REASONING_EFFORT: ${LLM_REASONING_EFFORT:-none}
+      PYDANTIC_AI_NO_BANNER: "1"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+      args:
+        API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped

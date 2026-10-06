@@ -1,0 +1,8 @@
+# Loaded automatically by `docker compose up` on a developer machine.
+services:
+  api:
+    ports:
+      - "8000:8000"
+  web:
+    ports:
+      - "3000:3000"
