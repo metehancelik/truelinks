@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api, errorMessage, type Decision, type Issue, type WorkOrder } from "@/lib/api";
-import { Badge, Button, Card, Notice, Trace } from "./ui";
+import { Badge, Button, Card, Notice, Spinner, Trace } from "./ui";
 
 const FLAG_TEXT: Record<string, string> = {
   INVALID_PHOTO_REFERENCE: "A finding points at a photo that was not sent. Check the assessment against the photos.",
@@ -77,23 +77,27 @@ export function IssueCard({ issue, onChange }: { issue: Issue; onChange: () => v
 function WorkOrderForm({ workOrder, onChange }: { workOrder: WorkOrder; onChange: () => void }) {
   const [title, setTitle] = useState(workOrder.title);
   const [description, setDescription] = useState(workOrder.description);
+  const [saving, setSaving] = useState<Decision | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const decided = workOrder.decision !== "PENDING";
   const edited = workOrder.title !== workOrder.draft.title || workOrder.description !== workOrder.draft.description;
 
   const decide = async (decision: Decision) => {
+    setSaving(decision);
     try {
       await api.decideWorkOrder(workOrder.id, decision, { title, description });
       setError(null);
     } catch (problem) {
       setError(errorMessage(problem));
     }
+    setSaving(null);
     onChange();
   };
 
   return (
     <div className="space-y-2 rounded border border-zinc-200 bg-zinc-50 p-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="font-semibold">Draft work order</h3>
+        <h3 className="font-semibold">{decided ? "Work order" : "Draft work order"}</h3>
         <Badge>{workOrder.decision}</Badge>
         <span>
           Urgency: <Badge>{workOrder.urgency}</Badge>
@@ -101,27 +105,41 @@ function WorkOrderForm({ workOrder, onChange }: { workOrder: WorkOrder; onChange
         {edited && <span className="text-xs text-zinc-500">Edited. The agent wrote: “{workOrder.draft.title}”</span>}
       </div>
       {error && <Notice tone="error">{error}</Notice>}
-      <input
-        aria-label="Work order title"
-        className="w-full rounded border border-zinc-300 bg-white px-2 py-1 font-medium"
-        value={title}
-        onChange={(event) => setTitle(event.target.value)}
-      />
-      <textarea
-        aria-label="Work order description"
-        className="w-full rounded border border-zinc-300 bg-white px-2 py-1"
-        rows={3}
-        value={description}
-        onChange={(event) => setDescription(event.target.value)}
-      />
-      <div className="flex gap-2">
-        <Button variant="primary" onClick={() => decide("ACCEPTED")}>
-          Accept work order
-        </Button>
-        <Button variant="danger" onClick={() => decide("REJECTED")}>
-          Reject
-        </Button>
-      </div>
+      {decided ? (
+        // A decided work order is a record of what was agreed, so it is no longer editable.
+        <>
+          <p className="font-medium">{workOrder.title}</p>
+          <p className="whitespace-pre-wrap text-zinc-700">{workOrder.description}</p>
+        </>
+      ) : (
+        <>
+          <input
+            aria-label="Work order title"
+            className="w-full rounded border border-zinc-300 bg-white px-2 py-1 font-medium"
+            value={title}
+            disabled={saving !== null}
+            onChange={(event) => setTitle(event.target.value)}
+          />
+          <textarea
+            aria-label="Work order description"
+            className="w-full rounded border border-zinc-300 bg-white px-2 py-1"
+            rows={3}
+            value={description}
+            disabled={saving !== null}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+          <div className="flex gap-2">
+            <Button variant="primary" disabled={saving !== null} onClick={() => decide("ACCEPTED")}>
+              {saving === "ACCEPTED" && <Spinner />}
+              Accept work order
+            </Button>
+            <Button variant="danger" disabled={saving !== null} onClick={() => decide("REJECTED")}>
+              {saving === "REJECTED" && <Spinner />}
+              Reject
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

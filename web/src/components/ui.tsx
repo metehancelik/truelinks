@@ -62,6 +62,16 @@ export function Button({ variant = "plain", className = "", ...props }: ButtonPr
   );
 }
 
+/** Shown inside a button while its request is in flight. */
+export function Spinner() {
+  return (
+    <span
+      aria-hidden
+      className="mr-1.5 inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent align-[-1px]"
+    />
+  );
+}
+
 export function Card({ title, aside, children }: { title: ReactNode; aside?: ReactNode; children: ReactNode }) {
   return (
     <section className="rounded-lg border border-zinc-200 bg-white">
