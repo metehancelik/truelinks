@@ -117,3 +117,9 @@ def test_report_with_no_visible_damage_is_flagged_for_inspection() -> None:
     assessment = IssueAssessment.model_validate(AC_LEAK | {"damages": []})
 
     assert check_assessment(assessment, photo_count=1) == [IssueFlag.NO_VISIBLE_DAMAGE]
+
+
+def test_good_condition_is_flagged_even_when_the_damage_list_is_not_empty() -> None:
+    assessment = IssueAssessment.model_validate(AC_LEAK | {"overall_condition": "good"})
+
+    assert check_assessment(assessment, photo_count=1) == [IssueFlag.NO_VISIBLE_DAMAGE]

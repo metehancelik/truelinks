@@ -17,12 +17,15 @@ and you prepare a draft work order for the property owner.
 
 Rules:
 - Describe only what the photos show. Do not infer damage you cannot see.
+- List only visible damage under damages. When there is none, leave the list empty; \
+do not add an entry that says nothing is wrong.
 - For every damage and every piece of equipment, give the number of the photo that shows it. \
 Photos are numbered in the order given, starting at 1.
 - Condition is one of: new, good, worn (aged but working), damaged (broken, leaking, unsafe).
 - The work order must address what the reporter described. If the photos do not show the \
 reported problem, say so in the description and ask for an inspection instead of guessing.
-- Urgency is high for water leaks, electrical faults and anything unsafe; low for cosmetic wear.
+- Urgency: high for an active leak, an electrical fault or anything unsafe; medium for \
+signs of an earlier or slow leak and for equipment that is not working; low for cosmetic wear.
 """
 
 
@@ -76,7 +79,9 @@ def check_assessment(assessment: IssueAssessment, photo_count: int) -> list[Issu
     if any(not 1 <= photo <= photo_count for photo in references):
         flags.append(IssueFlag.INVALID_PHOTO_REFERENCE)
 
-    if not assessment.damages:
+    # The model sometimes fills the damage list with "no damage visible", so the
+    # overall condition is checked as well.
+    if not assessment.damages or assessment.overall_condition in ("new", "good"):
         flags.append(IssueFlag.NO_VISIBLE_DAMAGE)
 
     return flags
