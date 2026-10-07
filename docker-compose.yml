@@ -32,6 +32,8 @@ services:
       LLM_VISION_MODEL: ${LLM_VISION_MODEL:-}
       LLM_REASONING_EFFORT: ${LLM_REASONING_EFFORT:-none}
       PYDANTIC_AI_NO_BANNER: "1"
+    volumes:
+      - uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -54,3 +56,4 @@ services:
 
 volumes:
   db-data:
+  uploads:

@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from truelinks.modules.issue.models import IssueRow, WorkOrderRow
+from truelinks.modules.issue.schema import Urgency
 from truelinks.modules.lease.models import Decision, LeaseFieldRow, LeaseRow
 from truelinks.modules.lease.rules import RuleResult
 from truelinks.modules.unit.models import UnitRow
@@ -86,9 +88,71 @@ class LeaseOut(BaseModel):
         )
 
 
+class WorkOrderOut(BaseModel):
+    id: str
+    title: str
+    description: str
+    urgency: str
+    # The agent's original wording, for comparison after a person edits it.
+    draft: dict[str, Any]
+    decision: str
+
+    @classmethod
+    def of(cls, row: WorkOrderRow) -> "WorkOrderOut":
+        return cls.model_validate(row, from_attributes=True)
+
+
+class IssueOut(BaseModel):
+    id: str
+    unit_id: str
+    note: str
+    status: str
+    error: str | None
+    photo_count: int
+    assessment: dict[str, Any] | None
+    flags: list[str]
+    trace: list[dict[str, Any]]
+    created_at: datetime
+    work_order: WorkOrderOut | None
+
+    @classmethod
+    def of(cls, row: IssueRow) -> "IssueOut":
+        return cls(
+            id=row.id,
+            unit_id=row.unit_id,
+            note=row.note,
+            status=row.status,
+            error=row.error,
+            photo_count=len(row.photos),
+            assessment=row.assessment,
+            flags=row.flags,
+            trace=row.trace,
+            created_at=row.created_at,
+            work_order=WorkOrderOut.of(row.work_order) if row.work_order else None,
+        )
+
+
+class UnitSummaryOut(UnitOut):
+    """A unit as the list shows it: is there a lease to review, are issues open."""
+
+    lease_status: str | None
+    open_issues: int
+
+
 class UnitDetailOut(BaseModel):
+    """The one screen an owner opens: a unit, its leases and the issues raised on it."""
+
     unit: UnitOut
     leases: list[LeaseOut]
+    issues: list[IssueOut]
+
+
+class WorkOrderDecisionIn(BaseModel):
+    decision: Decision
+    # Optional rewording by the person who accepts it.
+    title: str | None = None
+    description: str | None = None
+    urgency: Urgency | None = None
 
 
 class FieldDecisionIn(BaseModel):

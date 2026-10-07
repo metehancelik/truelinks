@@ -26,11 +26,14 @@ WORKDIR /app
 COPY --from=builder --chown=app:app /app /app
 COPY --chown=app:app data ./data
 COPY --chown=app:app samples ./samples
+# Reported photos live here; Compose mounts a volume over it.
+RUN mkdir uploads && chown app:app uploads
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     DATA_DIR=/app/data \
-    SAMPLES_DIR=/app/samples
+    SAMPLES_DIR=/app/samples \
+    UPLOADS_DIR=/app/uploads
 
 USER app
 EXPOSE 8000

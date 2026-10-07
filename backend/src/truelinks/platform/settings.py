@@ -17,6 +17,8 @@ class AppSettings(BaseSettings):
     # The owner's ruleset and unit records, and the bundled sample leases.
     data_dir: Path = _REPO_ROOT / "data"
     samples_dir: Path = _REPO_ROOT / "samples"
+    # Where reported photos are kept. A mounted volume in Docker.
+    uploads_dir: Path = _REPO_ROOT / "backend" / "uploads"
     # "stub" serves canned answers for the bundled samples: a demo with no model.
     llm_provider: Literal["openai-compatible", "stub"] = "openai-compatible"
     # Every row carries a tenant. One owner today; the column is what keeps

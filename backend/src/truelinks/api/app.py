@@ -5,21 +5,28 @@ from pathlib import Path
 from typing import Annotated, cast
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from truelinks.api.schemas import (
     FieldDecisionIn,
+    IssueOut,
     LeaseOut,
     RuleDecisionIn,
     SampleOut,
     UnitDetailOut,
     UnitOut,
+    UnitSummaryOut,
+    WorkOrderDecisionIn,
 )
+from truelinks.modules.issue import service as issues
+from truelinks.modules.issue.demo import register_demo_issues
+from truelinks.modules.issue.models import IssueRow, WorkOrderRow
 from truelinks.modules.lease import service
 from truelinks.modules.lease.demo import register_demo_leases
 from truelinks.modules.lease.documents import UnreadableDocumentError, read_document
-from truelinks.modules.lease.models import LeaseRow
+from truelinks.modules.lease.models import LeaseRow, LeaseStatus
 from truelinks.modules.lease.rules import Rule, load_ruleset
 from truelinks.modules.unit.models import UnitRow, list_units, seed_units
 from truelinks.modules.unit.records import load_units
@@ -43,7 +50,7 @@ class Container:
 
 def build_llm(settings: AppSettings) -> LLMProvider:
     if settings.llm_provider == "stub":
-        return register_demo_leases(StubProvider())
+        return register_demo_issues(register_demo_leases(StubProvider()))
     return OpenAICompatibleProvider(LLMSettings())
 
 
@@ -99,6 +106,46 @@ async def _process(container: Container, lease_id: str) -> None:
         await service.process_lease(session, container.llm, container.ruleset, lease_id)
 
 
+async def _process_issue(container: Container, issue_id: str) -> None:
+    with container.sessions() as session:
+        await issues.process_issue(session, container.llm, issue_id)
+
+
+def _unit(session: Session, container: Container, unit_id: str) -> UnitRow:
+    row = session.get(UnitRow, unit_id)
+    if row is None or row.tenant_id != container.settings.tenant_id:
+        raise HTTPException(404, "Unit not found.")
+    return row
+
+
+def _issue(session: Session, container: Container, issue_id: str) -> IssueRow:
+    issue = session.get(IssueRow, issue_id)
+    if issue is None or issue.tenant_id != container.settings.tenant_id:
+        raise HTTPException(404, "Issue not found.")
+    return issue
+
+
+def _unit_leases(session: Session, unit_id: str) -> list[LeaseRow]:
+    query = select(LeaseRow).where(LeaseRow.unit_id == unit_id).order_by(LeaseRow.created_at.desc())
+    return list(session.scalars(query))
+
+
+def _unit_summary(session: Session, row: UnitRow) -> UnitSummaryOut:
+    live = [
+        lease
+        for lease in _unit_leases(session, row.unit_id)
+        if lease.status != LeaseStatus.REJECTED
+    ]
+    open_issues = [
+        issue for issue in issues.list_unit_issues(session, row.unit_id) if issues.is_open(issue)
+    ]
+    return UnitSummaryOut(
+        **UnitOut.of(row).model_dump(),
+        lease_status=live[0].status if live else None,
+        open_issues=len(open_issues),
+    )
+
+
 def _add_routes(app: FastAPI) -> None:
     @app.get("/health")
     def health() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
@@ -106,22 +153,79 @@ def _add_routes(app: FastAPI) -> None:
         return {"status": "ok"}
 
     @app.get("/units")
-    def units(session: Db, container: Ctx) -> list[UnitOut]:  # pyright: ignore[reportUnusedFunction]
-        return [UnitOut.of(row) for row in list_units(session, container.settings.tenant_id)]
+    def units(session: Db, container: Ctx) -> list[UnitSummaryOut]:  # pyright: ignore[reportUnusedFunction]
+        rows = list_units(session, container.settings.tenant_id)
+        return [_unit_summary(session, row) for row in rows]
 
     @app.get("/units/{unit_id}")
     def unit(unit_id: str, session: Db, container: Ctx) -> UnitDetailOut:  # pyright: ignore[reportUnusedFunction]
-        """A unit with every lease linked to it: the one place an owner looks."""
-        row = session.get(UnitRow, unit_id)
-        if row is None or row.tenant_id != container.settings.tenant_id:
-            raise HTTPException(404, "Unit not found.")
-        leases = session.scalars(
-            select(LeaseRow).where(LeaseRow.unit_id == unit_id).order_by(LeaseRow.created_at.desc())
-        )
+        """A unit with its leases and the issues raised on it: the one place an owner looks."""
+        row = _unit(session, container, unit_id)
         return UnitDetailOut(
             unit=UnitOut.of(row),
-            leases=[_lease_out(session, container, lease) for lease in leases],
+            leases=[
+                _lease_out(session, container, lease) for lease in _unit_leases(session, unit_id)
+            ],
+            issues=[IssueOut.of(issue) for issue in issues.list_unit_issues(session, unit_id)],
         )
+
+    @app.post("/units/{unit_id}/issues", status_code=202)
+    async def report_issue(  # pyright: ignore[reportUnusedFunction]
+        unit_id: str,
+        background: BackgroundTasks,
+        session: Db,
+        container: Ctx,
+        photos: list[UploadFile],
+        note: Annotated[str, Form()] = "",
+    ) -> IssueOut:
+        """Store the report and return at once; the agent looks at the photos in the background."""
+        _unit(session, container, unit_id)
+        uploads = [
+            (photo.filename or "photo", photo.content_type or "", await photo.read())
+            for photo in photos
+        ]
+        try:
+            row = issues.create_issue(
+                session,
+                container.settings.tenant_id,
+                unit_id,
+                note,
+                uploads,
+                container.settings.uploads_dir,
+            )
+        except issues.IssueActionError as error:
+            raise HTTPException(422, str(error)) from error
+
+        background.add_task(_process_issue, container, row.id)
+        return IssueOut.of(row)
+
+    @app.get("/issues/{issue_id}")
+    def issue(issue_id: str, session: Db, container: Ctx) -> IssueOut:  # pyright: ignore[reportUnusedFunction]
+        return IssueOut.of(_issue(session, container, issue_id))
+
+    @app.get("/issues/{issue_id}/photos/{number}")
+    def issue_photo(issue_id: str, number: int, session: Db, container: Ctx) -> FileResponse:  # pyright: ignore[reportUnusedFunction]
+        """A reported photo, by its number in the report (starting at 1)."""
+        row = _issue(session, container, issue_id)
+        if not 1 <= number <= len(row.photos):
+            raise HTTPException(404, "Photo not found.")
+        photo = row.photos[number - 1]
+        return FileResponse(photo["path"], media_type=photo["media_type"])
+
+    @app.post("/work-orders/{work_order_id}/decision")
+    def decide_work_order(  # pyright: ignore[reportUnusedFunction]
+        work_order_id: str, body: WorkOrderDecisionIn, session: Db, container: Ctx
+    ) -> IssueOut:
+        work_order = session.get(WorkOrderRow, work_order_id)
+        if work_order is None or work_order.issue.tenant_id != container.settings.tenant_id:
+            raise HTTPException(404, "Work order not found.")
+        try:
+            issues.decide_work_order(
+                session, work_order, body.decision, body.title, body.description, body.urgency
+            )
+        except issues.IssueActionError as error:
+            raise HTTPException(409, str(error)) from error
+        return IssueOut.of(work_order.issue)
 
     @app.get("/leases")
     def leases(session: Db, container: Ctx) -> list[LeaseOut]:  # pyright: ignore[reportUnusedFunction]
