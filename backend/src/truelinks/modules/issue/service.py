@@ -58,7 +58,7 @@ def create_issue(
 async def process_issue(session: Session, llm: LLMProvider, issue_id: str) -> None:
     """Run the issue agent and store its assessment and draft work order."""
     issue = session.get_one(IssueRow, issue_id)
-    unit = session.get_one(UnitRow, issue.unit_id).to_unit()
+    unit = session.get_one(UnitRow, (issue.tenant_id, issue.unit_id)).to_unit()
     photos = [
         LLMImage(media_type=photo["media_type"], data=Path(photo["path"]).read_bytes())
         for photo in issue.photos
@@ -81,8 +81,12 @@ async def process_issue(session: Session, llm: LLMProvider, issue_id: str) -> No
     session.commit()
 
 
-def list_unit_issues(session: Session, unit_id: str) -> list[IssueRow]:
-    query = select(IssueRow).where(IssueRow.unit_id == unit_id).order_by(IssueRow.created_at.desc())
+def list_unit_issues(session: Session, tenant_id: str, unit_id: str) -> list[IssueRow]:
+    query = (
+        select(IssueRow)
+        .where(IssueRow.tenant_id == tenant_id, IssueRow.unit_id == unit_id)
+        .order_by(IssueRow.created_at.desc())
+    )
     return list(session.scalars(query))
 
 

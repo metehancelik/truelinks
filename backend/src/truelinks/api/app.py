@@ -28,7 +28,7 @@ from truelinks.modules.lease.demo import register_demo_leases
 from truelinks.modules.lease.documents import UnreadableDocumentError, read_document
 from truelinks.modules.lease.models import LeaseRow, LeaseStatus
 from truelinks.modules.lease.rules import Rule, load_ruleset
-from truelinks.modules.unit.models import UnitRow, list_units, seed_units
+from truelinks.modules.unit.models import UnitRow, get_unit, list_units, seed_units
 from truelinks.modules.unit.records import load_units
 from truelinks.platform.db import Base, make_engine, make_session_factory
 from truelinks.platform.llm.config import LLMSettings
@@ -112,8 +112,8 @@ async def _process_issue(container: Container, issue_id: str) -> None:
 
 
 def _unit(session: Session, container: Container, unit_id: str) -> UnitRow:
-    row = session.get(UnitRow, unit_id)
-    if row is None or row.tenant_id != container.settings.tenant_id:
+    row = get_unit(session, container.settings.tenant_id, unit_id)
+    if row is None:
         raise HTTPException(404, "Unit not found.")
     return row
 
@@ -125,24 +125,22 @@ def _issue(session: Session, container: Container, issue_id: str) -> IssueRow:
     return issue
 
 
-def _unit_leases(session: Session, unit_id: str) -> list[LeaseRow]:
-    query = select(LeaseRow).where(LeaseRow.unit_id == unit_id).order_by(LeaseRow.created_at.desc())
+def _unit_leases(session: Session, unit: UnitRow) -> list[LeaseRow]:
+    query = (
+        select(LeaseRow)
+        .where(LeaseRow.tenant_id == unit.tenant_id, LeaseRow.unit_id == unit.unit_id)
+        .order_by(LeaseRow.created_at.desc())
+    )
     return list(session.scalars(query))
 
 
 def _unit_summary(session: Session, row: UnitRow) -> UnitSummaryOut:
-    live = [
-        lease
-        for lease in _unit_leases(session, row.unit_id)
-        if lease.status != LeaseStatus.REJECTED
-    ]
-    open_issues = [
-        issue for issue in issues.list_unit_issues(session, row.unit_id) if issues.is_open(issue)
-    ]
+    live = [lease for lease in _unit_leases(session, row) if lease.status != LeaseStatus.REJECTED]
+    unit_issues = issues.list_unit_issues(session, row.tenant_id, row.unit_id)
     return UnitSummaryOut(
         **UnitOut.of(row).model_dump(),
         lease_status=live[0].status if live else None,
-        open_issues=len(open_issues),
+        open_issues=sum(issues.is_open(issue) for issue in unit_issues),
     )
 
 
@@ -163,10 +161,11 @@ def _add_routes(app: FastAPI) -> None:
         row = _unit(session, container, unit_id)
         return UnitDetailOut(
             unit=UnitOut.of(row),
-            leases=[
-                _lease_out(session, container, lease) for lease in _unit_leases(session, unit_id)
+            leases=[_lease_out(session, container, lease) for lease in _unit_leases(session, row)],
+            issues=[
+                IssueOut.of(issue)
+                for issue in issues.list_unit_issues(session, row.tenant_id, unit_id)
             ],
-            issues=[IssueOut.of(issue) for issue in issues.list_unit_issues(session, unit_id)],
         )
 
     @app.post("/units/{unit_id}/issues", status_code=202)

@@ -8,8 +8,10 @@ from truelinks.platform.db import Base
 class UnitRow(Base):
     __tablename__ = "units"
 
+    # A unit id is only unique within one owner: two owners may both have an
+    # "Apartment 1204". The key is the pair, never the unit id alone.
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     unit_id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
     label: Mapped[str]
     unit_type: Mapped[str]
     status: Mapped[str]
@@ -33,6 +35,10 @@ class UnitRow(Base):
 def list_units(session: Session, tenant_id: str) -> list[UnitRow]:
     query = select(UnitRow).where(UnitRow.tenant_id == tenant_id).order_by(UnitRow.unit_id)
     return list(session.scalars(query))
+
+
+def get_unit(session: Session, tenant_id: str, unit_id: str) -> UnitRow | None:
+    return session.get(UnitRow, (tenant_id, unit_id))
 
 
 def seed_units(session: Session, tenant_id: str, units: list[Unit]) -> None:

@@ -22,7 +22,7 @@ from truelinks.modules.lease.rules import (
 )
 from truelinks.modules.lease.schema import parse_field_value, to_json_value
 from truelinks.modules.lease.verification import FieldStatus, VerificationIssue, VerifiedField
-from truelinks.modules.unit.models import UnitRow, list_units
+from truelinks.modules.unit.models import get_unit, list_units
 from truelinks.modules.unit.records import find_units
 from truelinks.platform.llm.types import LLMProvider
 
@@ -150,7 +150,7 @@ def activate_lease(session: Session, lease: LeaseRow, ruleset: list[Rule]) -> No
     if unflagged:
         raise LeaseActionError(f"Rules still need a decision: {', '.join(unflagged)}.")
 
-    unit = session.get(UnitRow, lease.unit_id) if lease.unit_id else None
+    unit = get_unit(session, lease.tenant_id, lease.unit_id) if lease.unit_id else None
     if unit is None:
         raise LeaseActionError("The lease is not linked to a unit in the owner's records.")
     if unit.status != "available":

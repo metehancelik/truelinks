@@ -3,7 +3,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import JSON, ForeignKey, String, Text
+from sqlalchemy import JSON, ForeignKey, ForeignKeyConstraint, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from truelinks.modules.lease.models import Decision
@@ -26,11 +26,15 @@ def _new_id() -> str:
 
 class IssueRow(Base):
     __tablename__ = "issues"
+    # An issue can only be raised on a unit of its own tenant.
+    __table_args__ = (
+        ForeignKeyConstraint(["tenant_id", "unit_id"], ["units.tenant_id", "units.unit_id"]),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)
     # The reporter names the unit, so an issue always belongs to one.
-    unit_id: Mapped[str] = mapped_column(ForeignKey("units.unit_id"), index=True)
+    unit_id: Mapped[str] = mapped_column(String(32), index=True)
     note: Mapped[str] = mapped_column(Text)
     # [{"filename": ..., "media_type": ..., "path": ...}] in the order sent.
     photos: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list)

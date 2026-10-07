@@ -1,6 +1,7 @@
 """The API end to end, on an in-memory database and the demo stub."""
 
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -177,3 +178,20 @@ def test_sample_name_cannot_leave_the_samples_folder(client: TestClient) -> None
     response = client.post("/leases", data={"sample": "../../data/units.json"})
 
     assert response.status_code == 404
+
+
+def test_two_owners_can_have_the_same_unit_id_without_seeing_each_other(tmp_path: Path) -> None:
+    """A unit id is unique per owner, not globally, and every query is scoped to one owner."""
+    database = f"sqlite:///{tmp_path / 'shared.db'}"
+
+    def owner(tenant_id: str) -> TestClient:
+        settings = AppSettings(database_url=database, llm_provider="stub", tenant_id=tenant_id)
+        return TestClient(create_app(settings))
+
+    with owner("first") as first, owner("second") as second:
+        lease = upload(first, CLEAN)
+
+        assert len(second.get("/units").json()) == 5  # same ids, seeded again, no collision
+        assert first.get("/units/MC-B-1204").json()["leases"][0]["id"] == lease["id"]
+        assert second.get("/units/MC-B-1204").json()["leases"] == []
+        assert second.get(f"/leases/{lease['id']}").status_code == 404

@@ -3,7 +3,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import JSON, ForeignKey, String, Text
+from sqlalchemy import JSON, ForeignKey, ForeignKeyConstraint, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from truelinks.platform.db import Base
@@ -34,11 +34,15 @@ def _new_id() -> str:
 
 class LeaseRow(Base):
     __tablename__ = "leases"
+    # A lease can only point at a unit of its own tenant.
+    __table_args__ = (
+        ForeignKeyConstraint(["tenant_id", "unit_id"], ["units.tenant_id", "units.unit_id"]),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)
     # Set once the lease's unit reference matches exactly one unit record.
-    unit_id: Mapped[str | None] = mapped_column(ForeignKey("units.unit_id"), index=True)
+    unit_id: Mapped[str | None] = mapped_column(String(32), index=True)
     filename: Mapped[str]
     text: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(16), default=LeaseStatus.PROCESSING)
