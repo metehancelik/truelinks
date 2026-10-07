@@ -100,7 +100,8 @@ def current_rules(session: Session, lease: LeaseRow, ruleset: list[Rule]) -> lis
         return []
     units = [row.to_unit() for row in list_units(session, lease.tenant_id)]
     escalation = EscalationAssessment(**lease.escalation) if lease.escalation else None
-    return evaluate_rules(ruleset, current_fields(lease), units, escalation)
+    occupied_unit_id = lease.unit_id if lease.status == LeaseStatus.ACTIVE else None
+    return evaluate_rules(ruleset, current_fields(lease), units, escalation, occupied_unit_id)
 
 
 def decide_field(

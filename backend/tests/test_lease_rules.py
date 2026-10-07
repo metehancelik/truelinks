@@ -159,3 +159,20 @@ def test_unit_is_found_by_label_and_building() -> None:
 
 def test_label_alone_does_not_identify_a_unit() -> None:
     assert find_units("Apartment 1204", UNITS) == []
+
+
+def test_a_unit_occupied_by_this_lease_still_passes_r7() -> None:
+    occupied = [
+        unit.model_copy(update={"status": "occupied"}) if unit.unit_id == "MC-B-1204" else unit
+        for unit in UNITS
+    ]
+    fields = [
+        VerifiedField(name, value, quote=None, status=FieldStatus.VERIFIED)
+        for name, value in CLEAN.items()
+    ]
+
+    as_new_lease = evaluate_rules(RULESET, fields, occupied, DEFINED)
+    as_active_lease = evaluate_rules(RULESET, fields, occupied, DEFINED, "MC-B-1204")
+
+    assert as_new_lease[-1].outcome is Outcome.FAIL
+    assert as_active_lease[-1].outcome is Outcome.PASS

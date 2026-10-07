@@ -69,6 +69,8 @@ class RuleContext:
     fields: Mapping[str, VerifiedField]
     units: list[Unit]
     escalation: EscalationAssessment | None
+    # The unit this lease already occupies, once a person has activated it.
+    occupied_unit_id: str | None = None
 
     def number(self, name: str) -> float | None:
         value = self.fields[name].value
@@ -99,8 +101,11 @@ def evaluate_rules(
     fields: list[VerifiedField],
     units: list[Unit],
     escalation: EscalationAssessment | None = None,
+    occupied_unit_id: str | None = None,
 ) -> list[RuleResult]:
-    context = RuleContext({field.name: field for field in fields}, units, escalation)
+    context = RuleContext(
+        {field.name: field for field in fields}, units, escalation, occupied_unit_id
+    )
     return [_evaluate(rule, context) for rule in ruleset]
 
 
@@ -221,6 +226,10 @@ def _unit_exists_and_is_available(c: RuleContext) -> Verdict:
         return _unknown(f'"{reference}" matches several units: {ids}.')
 
     unit = matches[0]
+    if unit.unit_id == c.occupied_unit_id:
+        # Rules are recomputed on every read; an active lease must not fail
+        # because of the occupancy it created itself.
+        return _passed(f"Unit {unit.unit_id} is occupied by this lease.")
     if unit.status != "available":
         return _failed(f"Unit {unit.unit_id} is {unit.status}; it cannot take a new lease.")
     return _passed(f"Unit {unit.unit_id} exists and is available.")

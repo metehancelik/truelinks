@@ -83,6 +83,8 @@ def test_occupancy_changes_only_when_a_person_activates_the_lease(client: TestCl
 
     assert activated.json()["status"] == "ACTIVE"
     assert client.get("/units/MC-B-1204").json()["unit"]["status"] == "occupied"
+    # The lease must not fail R7 because of the occupancy it created itself.
+    assert outcomes(activated.json())["R7"] == "PASS"
 
 
 def test_problem_lease_fails_six_rules_and_flags_the_contradiction(client: TestClient) -> None:
