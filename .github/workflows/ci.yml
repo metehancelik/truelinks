@@ -37,12 +37,14 @@ jobs:
       - run: npm run lint
       - run: npm run build
 
-  # Builds both images and checks the browser -> web -> api chain end to end.
+  # Builds the images and checks browser -> web -> api -> Postgres end to end.
   docker:
     runs-on: ubuntu-latest
+    env:
+      LLM_PROVIDER: stub
     steps:
       - uses: actions/checkout@v5
       - run: docker compose up --build --detach --wait
-      - run: curl --fail --retry 10 --retry-delay 2 --retry-connrefused http://localhost:3000/api/health
+      - run: curl --fail --retry 10 --retry-delay 2 --retry-connrefused http://localhost:3000/api/units
       - if: failure()
         run: docker compose logs

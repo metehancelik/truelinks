@@ -12,9 +12,7 @@ from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 
-from truelinks.modules.lease.schema import Extracted, LeaseExtraction
-
-type FieldValue = str | int | float | bool | date
+from truelinks.modules.lease.schema import Extracted, FieldValue, LeaseExtraction
 
 
 class FieldStatus(StrEnum):

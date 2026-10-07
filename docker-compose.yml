@@ -2,15 +2,39 @@
 # (Coolify's Traefik) routes the public domain to `web` on port 3000.
 # For local use, docker-compose.override.yml adds the host ports.
 services:
-  api:
-    build: ./backend
+  db:
+    image: postgres:17-alpine
     environment:
+      POSTGRES_USER: truelinks
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-truelinks}
+      POSTGRES_DB: truelinks
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U truelinks"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    # Built from the repository root so the image carries data/ and samples/.
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://truelinks:${POSTGRES_PASSWORD:-truelinks}@db:5432/truelinks
+      # "stub" runs the bundled samples with no model: use it for a hosted demo.
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai-compatible}
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
       LLM_API_KEY: ${LLM_API_KEY:-ollama}
       LLM_TEXT_MODEL: ${LLM_TEXT_MODEL:-gemma4:12b}
       LLM_VISION_MODEL: ${LLM_VISION_MODEL:-}
       LLM_REASONING_EFFORT: ${LLM_REASONING_EFFORT:-none}
       PYDANTIC_AI_NO_BANNER: "1"
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -27,3 +51,6 @@ services:
       api:
         condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  db-data:

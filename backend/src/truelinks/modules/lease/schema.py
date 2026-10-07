@@ -1,11 +1,12 @@
 """What the model returns when it reads a lease."""
 
 from datetime import date
-from typing import Literal
+from typing import Literal, cast
 
 from pydantic import BaseModel, Field
 
 type PaymentFrequency = Literal["monthly", "quarterly", "semi-annual", "annual", "other"]
+type FieldValue = str | int | float | bool | date
 
 
 class Extracted[T](BaseModel):
@@ -66,3 +67,17 @@ class LeaseExtraction(BaseModel):
     termination_terms: Extracted[str] = Field(
         description="How either party may end the lease early, in one sentence"
     )
+
+
+def parse_field_value(name: str, raw: object) -> FieldValue | None:
+    """Turn a stored or human-entered JSON value into the field's own type.
+
+    A corrected date arrives as text and a rent may arrive as "9500"; the
+    field's declared type decides, exactly as it does for the model's answer.
+    """
+    extracted = cast(type[Extracted[FieldValue]], LeaseExtraction.model_fields[name].annotation)
+    return extracted.model_validate({"value": raw, "quote": None}).value
+
+
+def to_json_value(value: FieldValue | None) -> str | int | float | bool | None:
+    return value.isoformat() if isinstance(value, date) else value

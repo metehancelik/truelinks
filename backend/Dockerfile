@@ -1,3 +1,6 @@
+# Built from the repository root, so the image can carry data/ and samples/:
+#   docker build -f backend/Dockerfile .
+
 # Build stage: uv installs the locked dependencies into /app/.venv.
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 
@@ -8,10 +11,10 @@ ENV UV_COMPILE_BYTECODE=1 \
 WORKDIR /app
 
 # Dependencies first, so this layer is reused until the lockfile changes.
-COPY pyproject.toml uv.lock ./
+COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 
-COPY src ./src
+COPY backend/src ./src
 RUN uv sync --locked --no-dev
 
 # Runtime stage: no uv, no build tools, non-root user.
@@ -21,9 +24,13 @@ RUN useradd --system --uid 1001 --no-create-home app
 
 WORKDIR /app
 COPY --from=builder --chown=app:app /app /app
+COPY --chown=app:app data ./data
+COPY --chown=app:app samples ./samples
 
 ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    DATA_DIR=/app/data \
+    SAMPLES_DIR=/app/samples
 
 USER app
 EXPOSE 8000

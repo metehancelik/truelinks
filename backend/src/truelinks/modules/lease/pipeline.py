@@ -11,7 +11,13 @@ from pydantic import BaseModel
 
 from truelinks.modules.lease.extraction import extract_lease
 from truelinks.modules.lease.review import apply_concerns, review_lease
-from truelinks.modules.lease.rules import ESCALATION_RULE_ID, Rule, RuleResult, evaluate_rules
+from truelinks.modules.lease.rules import (
+    ESCALATION_RULE_ID,
+    EscalationAssessment,
+    Rule,
+    RuleResult,
+    evaluate_rules,
+)
 from truelinks.modules.lease.verification import VerifiedField, verify_extraction
 from truelinks.modules.unit.records import Unit
 from truelinks.platform.llm.types import LLMProvider, StructuredResult
@@ -29,6 +35,8 @@ class StepTrace:
 @dataclass(frozen=True)
 class LeaseAnalysis:
     fields: list[VerifiedField]
+    # Kept so the rules can be re-evaluated after a person corrects a field.
+    escalation: EscalationAssessment | None
     rules: list[RuleResult]
     trace: list[StepTrace]
 
@@ -56,7 +64,7 @@ async def analyse_lease(
     rules = evaluate_rules(ruleset, fields, units, review.data.escalation)
     trace.append(_code_step("rules", started))
 
-    return LeaseAnalysis(fields, rules, trace)
+    return LeaseAnalysis(fields, review.data.escalation, rules, trace)
 
 
 def _model_step[T: BaseModel](name: str, result: StructuredResult[T]) -> StepTrace:

@@ -5,9 +5,13 @@ description = "Lease and property-issue agents for a property owner"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.142.2",
+    "psycopg[binary]>=3.2",
     "pydantic>=2.13",
     "pydantic-ai-slim[openai]>=2.54",
     "pydantic-settings>=2.10",
+    "pypdf>=6.19.0",
+    "python-multipart>=0.0.32",
+    "sqlalchemy>=2.0",
     "uvicorn[standard]>=0.54.0",
 ]
 
