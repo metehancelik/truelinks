@@ -28,6 +28,30 @@ Working log of decisions and experiments. Source material for the README.
 - **The evaluator raises flags, it never changes values.** A human decides.
 - **No model-reported confidence.** Field status is computed: `VERIFIED`, `UNVERIFIED`, `MISSING`.
 
+- **A field is trusted only when the code checks and the evaluator both accept it.** An evaluator concern turns a `VERIFIED` field into `UNVERIFIED`, with the concern as the reason and the evaluator's sentence attached. The value is never rewritten. A field the code already rejected keeps its own, deterministic reason, and the evaluator may only raise the three issues that need judgement (`WRONG_SOURCE`, `CONTRADICTION`, `IMPLAUSIBLE`).
+- **A missing field never fails a rule.** "Not found by the model" is not "not in the lease", so the rule is `NOT_DETERMINABLE` and a person looks. A rule in the file with no code behind it is also `NOT_DETERMINABLE`, never a silent pass.
+- **The model reads, code calculates.** The term in months, and monthly versus annual rent, are extracted only as the lease states them. If the model derived one from the other, rules R4 and R6 could never fail.
+- **Signatures are a known blind spot.** In a scanned lease a signature is an image, which text extraction cannot see. R5 then returns `NOT_DETERMINABLE` and asks a person to check. Sending the signature page to the vision model is the fix.
+
+## Designed, not built yet: one bounded correction round
+
+When a field ends up `UNVERIFIED`, re-ask the extractor for that field only, telling it what was wrong, then run the same three layers on the new answer. At most one retry.
+
+- **Specific feedback.** The retry prompt carries the field, the previous value and quote, and the reason ("the quote is about the deposit, not the rent"), not a generic "try again".
+- **Only the flagged fields.** About 10 seconds instead of 75 on local hardware, and correct fields cannot be disturbed (over-correction).
+- **Code findings trigger it too.** "Quote not in document" is an objective failure and the most reliable feedback there is.
+- **The fix earns its status.** The new value goes through layers 1 to 3 again. If it still fails it stays `UNVERIFIED` and goes to a person. Both attempts stay in the trace.
+- **Measure before trusting it.** Fields fixed, fields broken, and seconds per fix, on the evaluation set. Without those three numbers the loop is a guess.
+
+Deferred because the review screen and issue reporting are required by the brief and the loop is not. Known limit either way: extractor and evaluator are the same model and share blind spots; a second model family is the production answer and did not fit in 24 GB.
+
+## Delivery
+
+- **One repository, two apps.** API and UI change together and start with one command. Module boundaries are already drawn if they need to split.
+- **Only `web` is public.** The browser calls `/api/*` and Next.js proxies to the Python service: one domain, no CORS.
+- **CI builds the images and calls the health endpoint through the proxy,** so a broken Dockerfile fails the pipeline instead of the deploy.
+- **Known gap: deploy does not wait for CI.** A push that fails tests is still deployed.
+
 ## Experiments
 
 ### Decision model as an independent judge (Laya) - not adopted

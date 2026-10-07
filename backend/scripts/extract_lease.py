@@ -1,4 +1,4 @@
-"""Run the lease pipeline on one file and print each step's result.
+"""Run the lease agent on one file and print each step's result.
 
 uv run python scripts/extract_lease.py ../samples/leases/01-clean-mc-b-1204.txt
 """
@@ -7,9 +7,8 @@ import asyncio
 import sys
 from pathlib import Path
 
-from truelinks.modules.lease.extraction import extract_lease
-from truelinks.modules.lease.rules import evaluate_rules, load_ruleset
-from truelinks.modules.lease.verification import verify_extraction
+from truelinks.modules.lease.pipeline import analyse_lease
+from truelinks.modules.lease.rules import load_ruleset
 from truelinks.modules.unit.records import load_units
 from truelinks.platform.llm.config import LLMSettings
 from truelinks.platform.llm.openai_compatible import OpenAICompatibleProvider
@@ -18,28 +17,30 @@ DATA = Path(__file__).parents[2] / "data"
 
 
 async def main(path: Path) -> None:
-    lease_text = path.read_text(encoding="utf-8")
     llm = OpenAICompatibleProvider(LLMSettings())
-
-    result = await extract_lease(llm, lease_text)
-    fields = verify_extraction(result.data, lease_text)
+    analysis = await analyse_lease(
+        llm,
+        path.read_text(encoding="utf-8"),
+        load_ruleset(DATA / "owner_ruleset.json"),
+        load_units(DATA / "units.json"),
+    )
 
     print("FIELDS")
-    for field in fields:
+    for field in analysis.fields:
         issue = field.issue or ""
         print(f"  {field.name:<20} {field.status:<11} {issue:<22} {field.value!s:.60}")
+        if field.explanation:
+            print(f"  {'':<20} {field.explanation}")
 
     print("\nRULES")
-    ruleset = load_ruleset(DATA / "owner_ruleset.json")
-    units = load_units(DATA / "units.json")
-    for outcome in evaluate_rules(ruleset, fields, units):
-        print(f"  {outcome.rule.id}  {outcome.outcome:<17} {outcome.reason}")
+    for result in analysis.rules:
+        print(f"  {result.rule.id}  {result.outcome:<17} {result.reason}")
 
-    seconds = result.duration_ms / 1000
-    print(
-        f"\n{result.model}: {seconds:.1f}s, "
-        f"{result.input_tokens} tokens in, {result.output_tokens} out"
-    )
+    print("\nTRACE")
+    for step in analysis.trace:
+        tokens = f"{step.input_tokens} in, {step.output_tokens} out" if step.model else ""
+        seconds = step.duration_ms / 1000
+        print(f"  {step.name:<8} {step.model or 'code':<14} {seconds:>6.1f}s  {tokens}")
 
 
 if __name__ == "__main__":

@@ -21,6 +21,9 @@ from truelinks.modules.unit.records import Unit, find_units
 
 MAX_TERM_MONTHS = 36
 
+# The one rule that needs judgement: the evaluator supplies its verdict.
+ESCALATION_RULE_ID = "R2"
+
 
 class Outcome(StrEnum):
     PASS = "PASS"
@@ -245,7 +248,7 @@ class _Check:
 # Rule ids are the contract with the owner's ruleset file.
 _CHECKS: dict[str, _Check] = {
     "R1": _Check(_deposit_covers_one_month, ("deposit_amount", "monthly_rent")),
-    "R2": _Check(_escalation_is_defined, ("escalation_clause",)),
+    ESCALATION_RULE_ID: _Check(_escalation_is_defined, ("escalation_clause",)),
     "R3": _Check(_term_within_limit, ("term_months",)),
     "R4": _Check(_dates_match_term, ("commencement_date", "expiry_date", "term_months")),
     "R5": _Check(

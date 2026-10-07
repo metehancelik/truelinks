@@ -26,9 +26,17 @@ class FieldStatus(StrEnum):
 
 
 class VerificationIssue(StrEnum):
+    """Why a field is UNVERIFIED."""
+
+    # Found by code (layers 1 and 2).
     NO_QUOTE = "NO_QUOTE"  # a value without a quote
     QUOTE_NOT_IN_DOCUMENT = "QUOTE_NOT_IN_DOCUMENT"  # possibly invented
     VALUE_NOT_IN_QUOTE = "VALUE_NOT_IN_QUOTE"  # possibly misread
+
+    # Raised by the evaluator (layer 3).
+    WRONG_SOURCE = "WRONG_SOURCE"  # the quote is about a different field
+    CONTRADICTION = "CONTRADICTION"  # the lease states conflicting values
+    IMPLAUSIBLE = "IMPLAUSIBLE"  # the value looks wrong on its face
 
 
 @dataclass(frozen=True)
@@ -38,6 +46,8 @@ class VerifiedField:
     quote: str | None
     status: FieldStatus
     issue: VerificationIssue | None = None
+    # The evaluator's one-sentence reason, when it raised the issue.
+    explanation: str | None = None
 
 
 # Free-text fields whose value should appear word for word in the quote.
