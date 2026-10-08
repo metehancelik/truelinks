@@ -53,7 +53,7 @@ export function UploadLease({ unitId, onDone }: { unitId: string; onDone: () => 
           {sending === "file" && <Spinner />}
           Upload
         </Button>
-        <span className="text-zinc-500">PDF with a text layer, or plain text.</span>
+        <span className="text-zinc-500">PDF (text or scanned) or plain text.</span>
       </form>
       {samples.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-4 text-sm">
