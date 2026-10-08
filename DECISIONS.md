@@ -113,3 +113,13 @@ Unit tests run on the stub, so they prove the code path, not the model. Running 
 What went right on the real model: 16 of 16 fields verified on the clean lease; the problem lease failed exactly the six rules it should; the AC photo was assessed correctly with no note at all; the kitchen photo produced no invented damage and the oven's brand was read off the door.
 
 What it showed about the evaluator: it did not flag the 24-month term against 18 months of dates. Rule R4 did. Arithmetic stays in code.
+
+
+## Evaluation
+
+- **Hand-written answers, never model-written.** A golden set produced by the model would record its own mistakes as correct.
+- **Headline metric: trusted but wrong.** A `VERIFIED` field with a wrong value is the only failure review cannot catch. Accuracy alone hides it.
+- **Traps over volume.** Two of the six leases exist to tempt specific mistakes: calculating a value the lease does not state, and reading a nearby amount (parking fee, late fee, a previous deposit) as the rent or the deposit.
+- **The harness is tested on the stub in CI,** so a broken scorer cannot report a good score.
+- **First run on `gemma4:12b`:** 96/96 fields, 0 trusted but wrong, 42/42 rules, 87 s per text lease and 106 s per scan. Read as "the set is too small", not "the agent is perfect". Summaries are scored loosely, and it was one run.
+- **On the scan, three right values went to a person:** both signatures and the commencement date that OCR misread. That is the design working: review load is the price of never trusting what cannot be checked.

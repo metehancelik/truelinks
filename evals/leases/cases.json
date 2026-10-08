@@ -1,0 +1,150 @@
+{
+  "about": "Golden answers for the lease agent. Paths are relative to the repository root. A string expected for a text field must appear in the value (case-insensitive); true means the field must be present; null means the lease does not state it.",
+  "cases": [
+    {
+      "name": "clean",
+      "document": "samples/leases/01-clean-mc-b-1204.txt",
+      "tests": "A lease that should pass everything.",
+      "fields": {
+        "landlord_name": "Marina Crest Holdings W.L.L.",
+        "tenant_name": "Sara Haddad",
+        "landlord_signed": true,
+        "tenant_signed": true,
+        "unit_reference": "Apartment 1204, Tower B",
+        "commencement_date": "2027-01-01",
+        "expiry_date": "2027-12-31",
+        "term_months": 12,
+        "monthly_rent": 9500,
+        "annual_rent": 114000,
+        "currency": "QAR",
+        "payment_frequency": "monthly",
+        "deposit_amount": 9500,
+        "escalation_clause": "5",
+        "renewal_terms": true,
+        "termination_terms": true
+      },
+      "rules": {"R1": "PASS", "R2": "PASS", "R3": "PASS", "R4": "PASS", "R5": "PASS", "R6": "PASS", "R7": "PASS"}
+    },
+    {
+      "name": "problems",
+      "document": "samples/leases/02-problems-mc-b-1205.txt",
+      "tests": "Low deposit, vague escalation, term contradicts dates, tenant not signed, rents do not reconcile, unit occupied.",
+      "fields": {
+        "landlord_name": "Marina Crest Holdings W.L.L.",
+        "tenant_name": "Omar Khalil",
+        "landlord_signed": true,
+        "tenant_signed": false,
+        "unit_reference": "Apartment 1205, Tower B",
+        "commencement_date": "2027-03-01",
+        "expiry_date": "2028-08-31",
+        "term_months": 24,
+        "monthly_rent": 11000,
+        "annual_rent": 120000,
+        "currency": "QAR",
+        "payment_frequency": "monthly",
+        "deposit_amount": 5000,
+        "escalation_clause": "mutual",
+        "renewal_terms": true,
+        "termination_terms": true
+      },
+      "rules": {"R1": "FAIL", "R2": "FAIL", "R3": "PASS", "R4": "FAIL", "R5": "FAIL", "R6": "FAIL", "R7": "FAIL"}
+    },
+    {
+      "name": "text-pdf",
+      "document": "samples/test-uploads/lease-text-mc-b-0902.pdf",
+      "tests": "A PDF whose text layer breaks lines in the middle of sentences.",
+      "fields": {
+        "landlord_name": "Marina Crest Holdings W.L.L.",
+        "tenant_name": "Lina Farouk",
+        "landlord_signed": true,
+        "tenant_signed": true,
+        "unit_reference": "Apartment 0902, Tower B",
+        "commencement_date": "2027-02-01",
+        "expiry_date": "2029-01-31",
+        "term_months": 24,
+        "monthly_rent": 7000,
+        "annual_rent": 84000,
+        "currency": "QAR",
+        "payment_frequency": "monthly",
+        "deposit_amount": 7000,
+        "escalation_clause": "3",
+        "renewal_terms": true,
+        "termination_terms": true
+      },
+      "rules": {"R1": "PASS", "R2": "PASS", "R3": "PASS", "R4": "PASS", "R5": "PASS", "R6": "PASS", "R7": "PASS"}
+    },
+    {
+      "name": "quarterly-no-escalation",
+      "document": "evals/leases/04-quarterly-no-escalation-mc-a-0301.txt",
+      "tests": "No monthly rent is stated (only annual and quarterly) and there is no escalation clause. The model must leave both empty instead of calculating or inventing them.",
+      "fields": {
+        "landlord_name": "Marina Crest Holdings W.L.L.",
+        "tenant_name": "Yusuf Rahman",
+        "landlord_signed": true,
+        "tenant_signed": true,
+        "unit_reference": "Apartment 0301, Tower A",
+        "commencement_date": "2027-04-01",
+        "expiry_date": "2030-03-31",
+        "term_months": 36,
+        "monthly_rent": null,
+        "annual_rent": 168000,
+        "currency": "QAR",
+        "payment_frequency": "quarterly",
+        "deposit_amount": 14000,
+        "escalation_clause": null,
+        "renewal_terms": true,
+        "termination_terms": true
+      },
+      "rules": {"R1": "NOT_DETERMINABLE", "R2": "NOT_DETERMINABLE", "R3": "PASS", "R4": "PASS", "R5": "PASS", "R6": "NOT_DETERMINABLE", "R7": "PASS"}
+    },
+    {
+      "name": "distractors-unknown-unit",
+      "document": "evals/leases/05-distractors-unknown-unit.txt",
+      "tests": "Other amounts sit next to the rent and the deposit (parking fee, late fee, a previous occupant's deposit). The term is over the limit and the unit is in a building the owner does not have.",
+      "fields": {
+        "landlord_name": "Marina Crest Holdings W.L.L.",
+        "tenant_name": "Hana Saleh",
+        "landlord_signed": true,
+        "tenant_signed": true,
+        "unit_reference": "Apartment 1204, Tower C",
+        "commencement_date": "2027-06-01",
+        "expiry_date": "2031-05-31",
+        "term_months": 48,
+        "monthly_rent": 15000,
+        "annual_rent": 180000,
+        "currency": "QAR",
+        "payment_frequency": "monthly",
+        "deposit_amount": 15000,
+        "escalation_clause": true,
+        "renewal_terms": true,
+        "termination_terms": true
+      },
+      "rules": {"R1": "PASS", "R2": "PASS", "R3": "FAIL", "R4": "PASS", "R5": "PASS", "R6": "PASS", "R7": "FAIL"}
+    },
+    {
+      "name": "scan-landlord-signed-only",
+      "document": "samples/test-uploads/lease-scanned-signed-landlord-only-mc-b-0902.pdf",
+      "tests": "A scan read by OCR. The landlord signed by hand, the tenant line is empty: only the vision check can tell.",
+      "needs_ocr": true,
+      "fields": {
+        "landlord_name": "Marina Crest Holdings W.L.L.",
+        "tenant_name": "Lina Farouk",
+        "landlord_signed": true,
+        "tenant_signed": false,
+        "unit_reference": "Apartment 0902, Tower B",
+        "commencement_date": "2027-02-01",
+        "expiry_date": "2029-01-31",
+        "term_months": 24,
+        "monthly_rent": 7000,
+        "annual_rent": 84000,
+        "currency": "QAR",
+        "payment_frequency": "monthly",
+        "deposit_amount": 7000,
+        "escalation_clause": "3",
+        "renewal_terms": true,
+        "termination_terms": true
+      },
+      "rules": {"R1": "PASS", "R2": "PASS", "R3": "PASS", "R4": "PASS", "R5": "FAIL", "R6": "PASS", "R7": "PASS"}
+    }
+  ]
+}

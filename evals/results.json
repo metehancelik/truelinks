@@ -1,0 +1,916 @@
+{
+  "summary": {
+    "cases": 6,
+    "errors": 0,
+    "fields": 96,
+    "correct": 96,
+    "trusted_but_wrong": 0,
+    "flagged_and_wrong": 0,
+    "flagged_but_right": 3,
+    "rules": 42,
+    "rules_correct": 42,
+    "seconds_per_lease": 89.8
+  },
+  "cases": [
+    {
+      "name": "clean",
+      "error": null,
+      "seconds": 87.254,
+      "tokens": 3118,
+      "fields": [
+        {
+          "name": "landlord_name",
+          "expected": "Marina Crest Holdings W.L.L.",
+          "actual": "Marina Crest Holdings W.L.L.",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "tenant_name",
+          "expected": "Sara Haddad",
+          "actual": "Sara Haddad",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "landlord_signed",
+          "expected": true,
+          "actual": "True",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "tenant_signed",
+          "expected": true,
+          "actual": "True",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "unit_reference",
+          "expected": "Apartment 1204, Tower B",
+          "actual": "Apartment 1204, Tower B, Marina Crest Residences, Lusail Marina District, Doha",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "commencement_date",
+          "expected": "2027-01-01",
+          "actual": "2027-01-01",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "expiry_date",
+          "expected": "2027-12-31",
+          "actual": "2027-12-31",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "term_months",
+          "expected": 12,
+          "actual": "12",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "monthly_rent",
+          "expected": 9500,
+          "actual": "9500.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "annual_rent",
+          "expected": 114000,
+          "actual": "114000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "currency",
+          "expected": "QAR",
+          "actual": "QAR",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "payment_frequency",
+          "expected": "monthly",
+          "actual": "monthly",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "deposit_amount",
+          "expected": 9500,
+          "actual": "9500.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "escalation_clause",
+          "expected": "5",
+          "actual": "five percent (5%)",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "renewal_terms",
+          "expected": true,
+          "actual": "automatically for a further term of twelve (12) months unless either party gives written notice of non-renewal at least sixty (60) days before the expiry date.",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "termination_terms",
+          "expected": true,
+          "actual": "giving ninety (90) days written notice. A Tenant who terminates early shall pay two months rent as compensation.",
+          "status": "VERIFIED",
+          "correct": true
+        }
+      ],
+      "rules": {
+        "R1": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R2": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R3": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R4": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R5": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R6": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R7": {
+          "expected": "PASS",
+          "got": "PASS"
+        }
+      }
+    },
+    {
+      "name": "problems",
+      "error": null,
+      "seconds": 86.83,
+      "tokens": 3053,
+      "fields": [
+        {
+          "name": "landlord_name",
+          "expected": "Marina Crest Holdings W.L.L.",
+          "actual": "Marina Crest Holdings W.L.L.",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "tenant_name",
+          "expected": "Omar Khalil",
+          "actual": "Omar Khalil",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "landlord_signed",
+          "expected": true,
+          "actual": "True",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "tenant_signed",
+          "expected": false,
+          "actual": "False",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "unit_reference",
+          "expected": "Apartment 1205, Tower B",
+          "actual": "Apartment 1205, Tower B, Marina Crest Residences, Lusail Marina District, Doha",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "commencement_date",
+          "expected": "2027-03-01",
+          "actual": "2027-03-01",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "expiry_date",
+          "expected": "2028-08-31",
+          "actual": "2028-08-31",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "term_months",
+          "expected": 24,
+          "actual": "24",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "monthly_rent",
+          "expected": 11000,
+          "actual": "11000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "annual_rent",
+          "expected": 120000,
+          "actual": "120000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "currency",
+          "expected": "QAR",
+          "actual": "QAR",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "payment_frequency",
+          "expected": "monthly",
+          "actual": "monthly",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "deposit_amount",
+          "expected": 5000,
+          "actual": "5000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "escalation_clause",
+          "expected": "mutual",
+          "actual": "The rent may be increased upon renewal as mutually agreed between the parties.",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "renewal_terms",
+          "expected": true,
+          "actual": "This lease may be renewed for a further term by written agreement of both parties made at least sixty (60) days before the expiry date.",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "termination_terms",
+          "expected": true,
+          "actual": "The Tenant may terminate this lease before the expiry date by giving sixty (60) days written notice and paying one month rent as compensation.",
+          "status": "VERIFIED",
+          "correct": true
+        }
+      ],
+      "rules": {
+        "R1": {
+          "expected": "FAIL",
+          "got": "FAIL"
+        },
+        "R2": {
+          "expected": "FAIL",
+          "got": "FAIL"
+        },
+        "R3": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R4": {
+          "expected": "FAIL",
+          "got": "FAIL"
+        },
+        "R5": {
+          "expected": "FAIL",
+          "got": "FAIL"
+        },
+        "R6": {
+          "expected": "FAIL",
+          "got": "FAIL"
+        },
+        "R7": {
+          "expected": "FAIL",
+          "got": "FAIL"
+        }
+      }
+    },
+    {
+      "name": "text-pdf",
+      "error": null,
+      "seconds": 80.844,
+      "tokens": 2987,
+      "fields": [
+        {
+          "name": "landlord_name",
+          "expected": "Marina Crest Holdings W.L.L.",
+          "actual": "Marina Crest Holdings W.L.L.",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "tenant_name",
+          "expected": "Lina Farouk",
+          "actual": "Lina Farouk",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "landlord_signed",
+          "expected": true,
+          "actual": "True",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "tenant_signed",
+          "expected": true,
+          "actual": "True",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "unit_reference",
+          "expected": "Apartment 0902, Tower B",
+          "actual": "Apartment 0902, Tower B, Marina Crest Residences, Lusail Marina District, Doha",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "commencement_date",
+          "expected": "2027-02-01",
+          "actual": "2027-02-01",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "expiry_date",
+          "expected": "2029-01-31",
+          "actual": "2029-01-31",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "term_months",
+          "expected": 24,
+          "actual": "24",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "monthly_rent",
+          "expected": 7000,
+          "actual": "7000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "annual_rent",
+          "expected": 84000,
+          "actual": "84000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "currency",
+          "expected": "QAR",
+          "actual": "QAR",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "payment_frequency",
+          "expected": "monthly",
+          "actual": "monthly",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "deposit_amount",
+          "expected": 7000,
+          "actual": "7000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "escalation_clause",
+          "expected": "3",
+          "actual": "three percent (3%)",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "renewal_terms",
+          "expected": true,
+          "actual": "twelve (12) months",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "termination_terms",
+          "expected": true,
+          "actual": "ninety (90) days written notice",
+          "status": "VERIFIED",
+          "correct": true
+        }
+      ],
+      "rules": {
+        "R1": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R2": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R3": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R4": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R5": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R6": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R7": {
+          "expected": "PASS",
+          "got": "PASS"
+        }
+      }
+    },
+    {
+      "name": "quarterly-no-escalation",
+      "error": null,
+      "seconds": 79.143,
+      "tokens": 2797,
+      "fields": [
+        {
+          "name": "landlord_name",
+          "expected": "Marina Crest Holdings W.L.L.",
+          "actual": "Marina Crest Holdings W.L.L.",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "tenant_name",
+          "expected": "Yusuf Rahman",
+          "actual": "Yusuf Rahman",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "landlord_signed",
+          "expected": true,
+          "actual": "True",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "tenant_signed",
+          "expected": true,
+          "actual": "True",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "unit_reference",
+          "expected": "Apartment 0301, Tower A",
+          "actual": "Apartment 0301, Tower A, Marina Crest Residences, Lusail Marina District, Doha",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "commencement_date",
+          "expected": "2027-04-01",
+          "actual": "2027-04-01",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "expiry_date",
+          "expected": "2030-03-31",
+          "actual": "2030-03-31",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "term_months",
+          "expected": 36,
+          "actual": "36",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "monthly_rent",
+          "expected": null,
+          "actual": null,
+          "status": "MISSING",
+          "correct": true
+        },
+        {
+          "name": "annual_rent",
+          "expected": 168000,
+          "actual": "168000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "currency",
+          "expected": "QAR",
+          "actual": "QAR",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "payment_frequency",
+          "expected": "quarterly",
+          "actual": "quarterly",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "deposit_amount",
+          "expected": 14000,
+          "actual": "14000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "escalation_clause",
+          "expected": null,
+          "actual": null,
+          "status": "MISSING",
+          "correct": true
+        },
+        {
+          "name": "renewal_terms",
+          "expected": true,
+          "actual": "written agreement of both parties made at least ninety (90) days before the expiry date",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "termination_terms",
+          "expected": true,
+          "actual": "after the first twelve months by giving ninety (90) days written notice",
+          "status": "VERIFIED",
+          "correct": true
+        }
+      ],
+      "rules": {
+        "R1": {
+          "expected": "NOT_DETERMINABLE",
+          "got": "NOT_DETERMINABLE"
+        },
+        "R2": {
+          "expected": "NOT_DETERMINABLE",
+          "got": "NOT_DETERMINABLE"
+        },
+        "R3": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R4": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R5": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R6": {
+          "expected": "NOT_DETERMINABLE",
+          "got": "NOT_DETERMINABLE"
+        },
+        "R7": {
+          "expected": "PASS",
+          "got": "PASS"
+        }
+      }
+    },
+    {
+      "name": "distractors-unknown-unit",
+      "error": null,
+      "seconds": 98.783,
+      "tokens": 3359,
+      "fields": [
+        {
+          "name": "landlord_name",
+          "expected": "Marina Crest Holdings W.L.L.",
+          "actual": "Marina Crest Holdings W.L.L.",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "tenant_name",
+          "expected": "Hana Saleh",
+          "actual": "Hana Saleh",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "landlord_signed",
+          "expected": true,
+          "actual": "True",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "tenant_signed",
+          "expected": true,
+          "actual": "True",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "unit_reference",
+          "expected": "Apartment 1204, Tower C",
+          "actual": "Apartment 1204, Tower C, Marina Crest Residences, Lusail Marina District, Doha",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "commencement_date",
+          "expected": "2027-06-01",
+          "actual": "2027-06-01",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "expiry_date",
+          "expected": "2031-05-31",
+          "actual": "2031-05-31",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "term_months",
+          "expected": 48,
+          "actual": "48",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "monthly_rent",
+          "expected": 15000,
+          "actual": "15000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "annual_rent",
+          "expected": 180000,
+          "actual": "180000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "currency",
+          "expected": "QAR",
+          "actual": "QAR",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "payment_frequency",
+          "expected": "monthly",
+          "actual": "monthly",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "deposit_amount",
+          "expected": 15000,
+          "actual": "15000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "escalation_clause",
+          "expected": true,
+          "actual": "At the end of each lease year the rent shall be adjusted in line with the Qatar Consumer Price Index published by the Planning and Statistics Authority, up to a maximum increase of five percent (5%).",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "renewal_terms",
+          "expected": true,
+          "actual": "This lease renews automatically for a further term of twelve (12) months unless either party gives written notice of non-renewal at least sixty (60) days before the expiry date.",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "termination_terms",
+          "expected": true,
+          "actual": "Either party may terminate this lease before the expiry date by giving ninety (90) days written notice. A Tenant who terminates early shall pay two months rent as compensation.",
+          "status": "VERIFIED",
+          "correct": true
+        }
+      ],
+      "rules": {
+        "R1": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R2": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R3": {
+          "expected": "FAIL",
+          "got": "FAIL"
+        },
+        "R4": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R5": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R6": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R7": {
+          "expected": "FAIL",
+          "got": "FAIL"
+        }
+      }
+    },
+    {
+      "name": "scan-landlord-signed-only",
+      "error": null,
+      "seconds": 105.92,
+      "tokens": 4110,
+      "fields": [
+        {
+          "name": "landlord_name",
+          "expected": "Marina Crest Holdings W.L.L.",
+          "actual": "Marina Crest Holdings W.L.L.",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "tenant_name",
+          "expected": "Lina Farouk",
+          "actual": "Lina Farouk",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "landlord_signed",
+          "expected": true,
+          "actual": "True",
+          "status": "UNVERIFIED",
+          "correct": true
+        },
+        {
+          "name": "tenant_signed",
+          "expected": false,
+          "actual": "False",
+          "status": "UNVERIFIED",
+          "correct": true
+        },
+        {
+          "name": "unit_reference",
+          "expected": "Apartment 0902, Tower B",
+          "actual": "Apartment 0902, Tower B, Marina Crest Residences, Lusail Marina District, Doha",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "commencement_date",
+          "expected": "2027-02-01",
+          "actual": "2027-02-01",
+          "status": "UNVERIFIED",
+          "correct": true
+        },
+        {
+          "name": "expiry_date",
+          "expected": "2029-01-31",
+          "actual": "2029-01-31",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "term_months",
+          "expected": 24,
+          "actual": "24",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "monthly_rent",
+          "expected": 7000,
+          "actual": "7000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "annual_rent",
+          "expected": 84000,
+          "actual": "84000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "currency",
+          "expected": "QAR",
+          "actual": "QAR",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "payment_frequency",
+          "expected": "monthly",
+          "actual": "monthly",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "deposit_amount",
+          "expected": 7000,
+          "actual": "7000.0",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "escalation_clause",
+          "expected": "3",
+          "actual": "three percent (3%)",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "renewal_terms",
+          "expected": true,
+          "actual": "twelve (12) months",
+          "status": "VERIFIED",
+          "correct": true
+        },
+        {
+          "name": "termination_terms",
+          "expected": true,
+          "actual": "ninety (90) days written notice",
+          "status": "VERIFIED",
+          "correct": true
+        }
+      ],
+      "rules": {
+        "R1": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R2": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R3": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R4": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R5": {
+          "expected": "FAIL",
+          "got": "FAIL"
+        },
+        "R6": {
+          "expected": "PASS",
+          "got": "PASS"
+        },
+        "R7": {
+          "expected": "PASS",
+          "got": "PASS"
+        }
+      }
+    }
+  ]
+}

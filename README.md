@@ -2,11 +2,11 @@
 
 A small full-stack service for a property owner and their team.
 
-- **Lease agent:** reads a lease (text, PDF or scan) into a structured record where every field points at the sentence it came from, checks each field, validates the lease against the owner's rules and links it to a unit.
+- **Lease agent:** reads a lease (text, PDF or scan) into a structured record where every field points at the sentence it came from, checks each field, validates the lease against the owner's rules, and checks that it really is the lease of the unit it was added to.
 - **Issue agent:** looks at photos of a unit and drafts a work order: condition, equipment, damage, urgency.
 - **One screen per unit:** the lease and the issues meet on the unit. A person accepts, corrects or rejects every field, rule result and work order. Nothing changes the unit until a person activates the lease.
 
-Live demo: https://truelinks.ravey.app (runs on a local model. the demo mode below needs no model at all).
+Live demo: https://truelinks.ravey.app (runs on a local model; the demo mode below needs no model at all).
 
 The short version of the approach: **the model reads, code checks, a person decides.**
 
@@ -18,10 +18,11 @@ The short version of the approach: **the model reads, code checks, a person deci
 2. [How it works](#how-it-works)
 3. [Key decisions and trade-offs](#key-decisions-and-trade-offs)
 4. [What I tested on the real model, and what it found](#what-i-tested-on-the-real-model-and-what-it-found)
-5. [Where I would take the product next](#where-i-would-take-the-product-next)
-6. [What I left out](#what-i-left-out)
-7. [Where it breaks first at scale](#where-it-breaks-first-at-scale)
-8. [How I used AI tools, and where they broke](#how-i-used-ai-tools-and-where-they-broke)
+5. [Evaluation](#evaluation)
+6. [Where I would take the product next](#where-i-would-take-the-product-next)
+7. [What I left out](#what-i-left-out)
+8. [Where it breaks first at scale](#where-it-breaks-first-at-scale)
+9. [How I used AI tools, and where they broke](#how-i-used-ai-tools-and-where-they-broke)
 
 The working log behind this README is [DECISIONS.md](DECISIONS.md).
 
@@ -67,7 +68,7 @@ Scanned PDFs need Tesseract on the machine (`brew install tesseract`). The Docke
 
 ```bash
 cd backend
-uv run pytest               # 84 tests, no model needed
+uv run pytest               # 90 tests, no model needed
 uv run ruff check . && uv run ruff format --check . && uv run pyright   # pyright in strict mode
 
 cd web
@@ -76,9 +77,17 @@ npm run lint && npm run build
 
 CI runs all of this, then builds the Docker images and calls the API through the web proxy.
 
+### Evaluation
+
+```bash
+cd backend
+uv run python scripts/run_evals.py --out ../evals/results.json   # the model in .env
+uv run python scripts/run_evals.py --stub                         # checks the harness only
+```
+
 ### Things to try
 
-- **Bundled samples** (buttons on the home page): a clean lease for MC-B-1204 that passes every rule, and a problem lease for MC-B-1205 that fails six of seven.
+- **Bundled samples** (buttons on each unit's page): a clean lease that passes every rule when added to MC-B-1204, and a problem lease that fails six of seven on MC-B-1205. Add one to the wrong unit and R7 says so.
 - **`samples/test-uploads/`:** the same new lease (MC-B-0902) as a text PDF, as a scan, and as a scan where only the landlord signed by hand.
 - **Issues:** any photo of a room or appliance. The brief's photos were not attached to the email, so I tested with my own.
 
@@ -92,6 +101,8 @@ CI runs all of this, then builds the Docker images and calls the API through the
 upload ─► read ─► extract ─► verify ─► review ─► [signatures] ─► rules ─► person decides ─► activate
           code     model      code      model      model (scans)   code
 ```
+
+A lease is added on its unit's page, so the person's choice of unit is the link. The agent's reading still counts: if the lease's own wording names a different unit, R7 fails and a person decides.
 
 | Step | What it does | Why |
 |---|---|---|
@@ -147,7 +158,7 @@ Every agent run stores a trace: each step, the model or "code", the duration and
 
 | Decision | Trade-off accepted |
 |---|---|
-| **Python backend, Next.js as a thin client.** I started in TypeScript only, then moved the agents to Python: the verification and rules logic is the heart of the product and reads best as plain typed Python. | About two hours to port. The design did not change. |
+| **Python backend, Next.js as a thin client.** The verification and rules logic is the heart of the product and reads best as plain typed Python; the UI only shows what the API decided. | Two languages in one repo. |
 | **Open-weight model run locally (`gemma4:12b` on Ollama)** behind an OpenAI-compatible adapter (Pydantic AI). The main reason is privacy: a lease holds names, ID references, rents and signatures. With open weights the document never leaves the owner's machine or their own cloud, and no third party sees tenant data. It also costs nothing per call. | Slow: about 65 s to extract a lease, 25 to 40 s per issue on a laptop. A larger open model on a GPU server fixes the speed without giving up the privacy. A hosted API is still possible: it is configuration, not code. |
 | **Structured output with a schema, temperature 0, thinking off.** | Thinking on was 4x slower for no gain on extraction. |
 | **Quotes, not confidence scores.** Status is computed from evidence. | The model must return more tokens (a quote per field). |
@@ -184,7 +195,42 @@ Bugs found and fixed:
 3. **Urgency was "high" for an old water stain.** The model was following my prompt ("high for water leaks"). The rule now separates an active leak from signs of an old one.
 4. **A decided work order stayed editable** and gave no feedback while saving.
 
-What it showed me about the evaluator: on the problem lease the term says 24 months but the dates span 18. The deterministic rule R4 caught it; the evaluator model did not flag it. That is the argument for keeping arithmetic in code.
+---
+
+## Evaluation
+
+`evals/leases/cases.json` holds hand-written answers for six leases: every field and every rule outcome. The script runs the whole agent on each and scores it.
+
+The headline metric is **trusted but wrong**: a field marked `VERIFIED` whose value is wrong. It reaches a person looking settled, so review cannot catch it. Every other mistake is flagged, which is what review is for. This number must be zero.
+
+| Case | What it tests |
+|---|---|
+| clean | Should pass everything. |
+| problems | Six rule failures, including a term that contradicts its dates. |
+| text-pdf | A PDF whose text layer breaks lines mid-sentence. |
+| quarterly-no-escalation | Only annual and quarterly rent are stated, no escalation clause. The model must leave monthly rent and escalation empty, not calculate or invent them. |
+| distractors-unknown-unit | A parking fee, a late fee and a previous occupant's deposit sit next to the real amounts. The term is over the limit and the building is not the owner's. |
+| scan-landlord-signed-only | A scan read by OCR; only the landlord signed by hand. |
+
+**Result on `gemma4:12b`** (full report in [`evals/results.json`](evals/results.json)):
+
+| | |
+|---|---|
+| Fields right | 96 / 96 |
+| Trusted but wrong | **0** |
+| Right, but sent to a person | 3 (all on the scan) |
+| Rules right | 42 / 42 |
+| Seconds per lease | 87 (text), 106 (scan: OCR plus the signature check) |
+
+On the scan, the three fields a person is asked to confirm are exactly the ones that should be: both signatures (a judgement on an image, which code cannot check) and the commencement date (OCR read "1 February" as "| February", so the quote no longer proves the value). The values were right, the system was right not to trust them on its own.
+
+How I read it:
+
+- **A perfect score says the set is too small, not that the agent is perfect.** Six leases from one template. The next step is real leases from a customer, with the answers taken from the corrections their reviewers make.
+- **The traps did not work,** which is the useful part: no calculated monthly rent, no parking fee read as rent, no previous deposit read as the deposit.
+- **Summaries are scored loosely.** For renewal and termination the eval only checks that something was extracted, and the real model sometimes returns a fragment ("twelve (12) months"). The eval does not measure summary quality yet.
+- **The evaluator stayed silent on the 24-versus-18-month contradiction,** in the live test and here. Rule R4 caught it both times. That is the argument for keeping arithmetic in code.
+- **One run.** Temperature 0 makes repeats likely, not guaranteed; a CI gate would run each case several times.
 
 ---
 
@@ -231,11 +277,9 @@ Owners do not want to review fields; they want to know their portfolio is in ord
 
 Property teams already live in Yardi or similar. The agent should **read units and occupancy from there and write the approved lease back**, rather than becoming another system to keep in sync. The verified, sourced record is the part those systems do not have.
 
-### 7. Trust the agent with numbers, not feelings
+### 7. Grow the evaluation set from real corrections
 
-- **Evaluation set from real corrections:** every time a person corrects a field, that is a labelled example. Track per-field accuracy over time and per document type (clean text, PDF, scan).
-- **Gate model or prompt changes on that set** in CI, so a "better" prompt that breaks dates does not ship.
-- **Cost and latency per lease** are already traced per step; put them on a dashboard per owner.
+Every correction a reviewer makes is a labelled example. Feed them into the evaluation set above, split by document type, and gate every prompt or model change on it in CI. Cost and latency per lease are already traced per step and belong on the same dashboard.
 
 ### 8. Better reading of scans, without sending documents out
 
@@ -245,13 +289,12 @@ Tesseract is the safe start, not the end. Open-weight vision-language models, th
 - **Keep Tesseract as a second, independent reader.** Where the two disagree on a quoted sentence, the field goes to `UNVERIFIED`. Two different readers that agree are much stronger evidence than one model checking itself.
 - **Use the same model for signatures, stamps and handwritten amendments**, which plain OCR cannot read at all.
 
-Why open weights throughout: leases and tenant photos are personal data. An owner should not have to trust a third party with every tenant's name, ID and rent to use this product, and in some markets they may not be allowed to. Running open models in the owner's own environment makes that a non-question, and it is a selling point, not just a constraint.
+Open weights throughout, for the privacy reason in the decisions table: tenant data stays in the owner's environment. That is a selling point, not just a constraint.
 
 ### 9. Region-specific details that matter in Doha
 
 - **Arabic and bilingual leases:** OCR language packs and a model that reads Arabic. A large share of real leases will need this.
 - **Hijri and Gregorian dates** in the same document.
-- **Lease registration details** as fields, where the local authority requires the lease to be registered.
 
 ---
 
