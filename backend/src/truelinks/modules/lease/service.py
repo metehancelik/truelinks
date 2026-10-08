@@ -37,12 +37,22 @@ class LeaseActionError(Exception):
 
 
 def create_lease(
-    session: Session, tenant_id: str, filename: str, document: Document, uploads_dir: Path
+    session: Session,
+    tenant_id: str,
+    unit_id: str,
+    filename: str,
+    document: Document,
+    uploads_dir: Path,
 ) -> LeaseRow:
+    """Store a lease on the unit a person added it to; the agent reads it next."""
     # Reading is the first step of the trace, so a lease read by OCR says so.
     read = StepTrace(f"read: {document.method}", None, document.duration_ms)
     lease = LeaseRow(
-        tenant_id=tenant_id, filename=filename, text=document.text, trace=[asdict(read)]
+        tenant_id=tenant_id,
+        unit_id=unit_id,
+        filename=filename,
+        text=document.text,
+        trace=[asdict(read)],
     )
     session.add(lease)
     session.flush()
@@ -88,7 +98,8 @@ async def process_lease(
     lease.escalation = asdict(analysis.escalation) if analysis.escalation else None
     lease.trace = [*lease.trace, *(asdict(step) for step in analysis.trace)]
     lease.status = LeaseStatus.IN_REVIEW
-    _match_unit(session, lease)
+    if lease.unit_id is None:
+        _match_unit(session, lease)
     session.commit()
 
 
@@ -119,7 +130,9 @@ def current_rules(session: Session, lease: LeaseRow, ruleset: list[Rule]) -> lis
     units = [row.to_unit() for row in list_units(session, lease.tenant_id)]
     escalation = EscalationAssessment(**lease.escalation) if lease.escalation else None
     occupied_unit_id = lease.unit_id if lease.status == LeaseStatus.ACTIVE else None
-    return evaluate_rules(ruleset, current_fields(lease), units, escalation, occupied_unit_id)
+    return evaluate_rules(
+        ruleset, current_fields(lease), units, escalation, occupied_unit_id, lease.unit_id
+    )
 
 
 def decide_field(
@@ -140,7 +153,7 @@ def decide_field(
 
     row.decision = decision
     row.decided_at = datetime.now(UTC)
-    if name == UNIT_REFERENCE:
+    if name == UNIT_REFERENCE and lease.unit_id is None:
         _match_unit(session, lease)
     session.commit()
 
@@ -194,7 +207,11 @@ def _require_in_review(lease: LeaseRow) -> None:
 
 
 def _match_unit(session: Session, lease: LeaseRow) -> None:
-    """Link the lease to its unit when the reference names exactly one."""
+    """Link the lease to its unit when the reference names exactly one.
+
+    Only for leases stored before a lease was always added to a unit: a person's
+    choice of unit is never overridden by the agent's reading of the text.
+    """
     reference = next(
         (field.value for field in current_fields(lease) if field.name == UNIT_REFERENCE), None
     )

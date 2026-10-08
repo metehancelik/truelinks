@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback } from "react";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
-import { ReportIssue } from "@/components/forms";
+import { ReportIssue, UploadLease } from "@/components/forms";
 import { IssueCard } from "@/components/IssueCard";
 import { LeaseCard } from "@/components/LeaseCard";
 import { Badge, Notice, SectionTitle } from "@/components/ui";
@@ -53,16 +53,16 @@ export function UnitView({ unitId }: { unitId: string }) {
             )}
             {data.leases.length === 0 && data.unit.status !== "occupied" && (
               <p className={muted}>
-                No lease is linked to this unit. Add one from the{" "}
-                <Link href="/" className="font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-900">
-                  units page
-                </Link>
-                .
+                No lease is linked to this unit yet. Add one below.
               </p>
             )}
             {data.leases.map((lease) => (
               <LeaseCard key={lease.id} lease={lease} onChange={refresh} />
             ))}
+            {/* A new lease only once nothing is pending or in force on the unit. */}
+            {!data.leases.some((lease) => ["PROCESSING", "IN_REVIEW", "ACTIVE"].includes(lease.status)) && (
+              <UploadLease unitId={unitId} onDone={refresh} />
+            )}
           </section>
 
           <section className="space-y-3">

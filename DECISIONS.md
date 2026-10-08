@@ -80,6 +80,7 @@ Tried Laya (open-weights decision model, served locally via `laya-serve`) as a s
 - **Rules are recomputed on every read, never stored.** A person's correction changes the inputs, and every rule that depends on them updates at once. Nothing cached can go stale.
 - **Activation is the only place occupancy changes.** It requires every field decided, every non-passing rule acknowledged, and the unit to exist and be available. Uploading or matching a lease changes nothing on the unit.
 - **An active lease passes R7 on its own unit.** Found on the live app: after activation the unit is occupied by this very lease, and because rules are recomputed, the lease started failing "unit must be available". The rule now knows which unit the lease occupies.
+- **A lease is added on its unit's page, and the person's choice of unit wins.** Linking used to come from the extracted unit reference, so a misread reference left the lease unlinked or on the wrong unit. Now the upload names the unit. The agent's reading still counts: R7 fails when the lease's own wording names a different unit, and a person acknowledges or dismisses it like any other rule.
 - **Occupied with no lease on file is a valid state.** The owner's records say two units are occupied; their leases were never uploaded. The data model allows it (activation implies occupied, not the reverse), and the unit page says so plainly instead of looking broken.
 
 ## Multi-tenancy

@@ -255,6 +255,7 @@ def _add_routes(app: FastAPI) -> None:
         background: BackgroundTasks,
         session: Db,
         container: Ctx,
+        unit_id: Annotated[str, Form()],
         file: UploadFile | None = None,
         sample: Annotated[str | None, Form()] = None,
     ) -> LeaseOut:
@@ -262,7 +263,9 @@ def _add_routes(app: FastAPI) -> None:
 
         A local model needs a minute or two per lease, far too long to hold a
         request open. The client polls the lease until it leaves PROCESSING.
+        The lease belongs to the unit it was added to; R7 checks that its text agrees.
         """
+        unit = _unit(session, container, unit_id)
         if file is not None:
             filename, content = file.filename or "lease", await file.read()
         elif sample is not None:
@@ -282,6 +285,7 @@ def _add_routes(app: FastAPI) -> None:
         row = service.create_lease(
             session,
             container.settings.tenant_id,
+            unit.unit_id,
             filename,
             document,
             container.settings.uploads_dir,

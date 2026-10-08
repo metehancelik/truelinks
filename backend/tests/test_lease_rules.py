@@ -176,3 +176,16 @@ def test_a_unit_occupied_by_this_lease_still_passes_r7() -> None:
 
     assert as_new_lease[-1].outcome is Outcome.FAIL
     assert as_active_lease[-1].outcome is Outcome.PASS
+
+
+def test_r7_fails_when_the_lease_names_another_unit_than_it_was_added_to() -> None:
+    fields = [
+        VerifiedField(name, value, quote=None, status=FieldStatus.VERIFIED)
+        for name, value in CLEAN.items()
+    ]
+
+    on_its_unit = evaluate_rules(RULESET, fields, UNITS, DEFINED, lease_unit_id="MC-B-1204")
+    on_another = evaluate_rules(RULESET, fields, UNITS, DEFINED, lease_unit_id="MC-B-0902")
+
+    assert on_its_unit[-1].outcome is Outcome.PASS
+    assert on_another[-1].outcome is Outcome.FAIL

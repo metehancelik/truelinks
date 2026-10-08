@@ -45,7 +45,7 @@ def test_report_becomes_an_assessment_and_a_draft_work_order(client: TestClient)
 
 
 def test_issue_appears_on_its_units_page_next_to_the_lease(client: TestClient) -> None:
-    client.post("/leases", data={"sample": "01-clean-mc-b-1204.txt"})
+    client.post("/leases", data={"sample": "01-clean-mc-b-1204.txt", "unit_id": UNIT})
     issue = report(client, "Hot water heater looks rusty.")
 
     detail = client.get(f"/units/{UNIT}").json()

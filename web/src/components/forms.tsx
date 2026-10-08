@@ -2,12 +2,14 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { api, errorMessage } from "@/lib/api";
-import { Button, Card, fileInputClass, inputClass, Notice } from "./ui";
+import { Button, Card, fileInputClass, inputClass, Notice, Spinner } from "./ui";
 
-/** Upload a lease, or run one of the bundled samples. */
-export function UploadLease({ onDone }: { onDone: () => void }) {
+/** Add a lease to a unit: upload one, or run one of the bundled samples. */
+export function UploadLease({ unitId, onDone }: { unitId: string; onDone: () => Promise<void> | void }) {
   const [samples, setSamples] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // What is being sent: "file" or a sample's name. Its button shows a spinner.
+  const [sending, setSending] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -16,27 +18,30 @@ export function UploadLease({ onDone }: { onDone: () => void }) {
       .catch(() => setSamples([]));
   }, []);
 
-  const send = async (form: FormData) => {
+  const send = async (key: string, form: FormData) => {
+    form.set("unit_id", unitId);
+    setSending(key);
     try {
       await api.uploadLease(form);
       setError(null);
     } catch (problem) {
       setError(errorMessage(problem));
     }
-    onDone();
+    await onDone();
+    setSending(null);
   };
 
   const upload = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     event.currentTarget.reset();
-    void send(form);
+    void send("file", form);
   };
 
   const runSample = (name: string) => {
     const form = new FormData();
     form.set("sample", name);
-    void send(form);
+    void send(name, form);
   };
 
   return (
@@ -44,7 +49,8 @@ export function UploadLease({ onDone }: { onDone: () => void }) {
       {error && <Notice tone="error">{error}</Notice>}
       <form onSubmit={upload} className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
         <input name="file" type="file" accept=".pdf,.txt" required aria-label="Lease document" className={fileInputClass} />
-        <Button variant="primary" type="submit">
+        <Button variant="primary" type="submit" disabled={sending !== null}>
+          {sending === "file" && <Spinner />}
           Upload
         </Button>
         <span className="text-zinc-500">PDF with a text layer, or plain text.</span>
@@ -53,7 +59,8 @@ export function UploadLease({ onDone }: { onDone: () => void }) {
         <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-4 text-sm">
           <span className="mr-1 text-zinc-600">Or try a sample:</span>
           {samples.map((name) => (
-            <Button key={name} className="font-mono text-xs" onClick={() => runSample(name)}>
+            <Button key={name} className="font-mono text-xs" disabled={sending !== null} onClick={() => runSample(name)}>
+              {sending === name && <Spinner />}
               {name}
             </Button>
           ))}
@@ -64,20 +71,23 @@ export function UploadLease({ onDone }: { onDone: () => void }) {
 }
 
 /** Report an issue on a unit with one or more photos. */
-export function ReportIssue({ unitId, onDone }: { unitId: string; onDone: () => void }) {
+export function ReportIssue({ unitId, onDone }: { unitId: string; onDone: () => Promise<void> | void }) {
   const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     event.currentTarget.reset();
+    setSending(true);
     try {
       await api.reportIssue(unitId, form);
       setError(null);
     } catch (problem) {
       setError(errorMessage(problem));
     }
-    onDone();
+    await onDone();
+    setSending(false);
   };
 
   return (
@@ -93,7 +103,8 @@ export function ReportIssue({ unitId, onDone }: { unitId: string; onDone: () => 
         />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <input name="photos" type="file" accept="image/*" multiple required aria-label="Photos" className={fileInputClass} />
-          <Button variant="primary" type="submit">
+          <Button variant="primary" type="submit" disabled={sending}>
+            {sending && <Spinner />}
             Send report
           </Button>
           <span className="text-zinc-500">Up to 6 photos.</span>

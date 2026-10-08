@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
-import { UploadLease } from "@/components/forms";
 import { LeaseCard } from "@/components/LeaseCard";
 import { Badge, Card, Notice, SectionTitle } from "@/components/ui";
 
@@ -11,9 +10,8 @@ export default function Home() {
   const units = useResource(api.units);
   const leases = useResource(api.leases);
 
-  const refresh = () => {
-    void units.refresh();
-    void leases.refresh();
+  const refresh = async () => {
+    await Promise.all([units.refresh(), leases.refresh()]);
   };
 
   // Leases the agent could not place on a unit still need a person.
@@ -70,8 +68,6 @@ export default function Home() {
           </table>
         </div>
       </Card>
-
-      <UploadLease onDone={refresh} />
 
       {unlinked.length > 0 && (
         <section className="space-y-3">

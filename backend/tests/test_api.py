@@ -12,6 +12,8 @@ from truelinks.platform.settings import AppSettings
 
 CLEAN = "01-clean-mc-b-1204.txt"
 PROBLEMS = "02-problems-mc-b-1205.txt"
+# The unit each sample lease names in its own text.
+UNIT_OF = {CLEAN: "MC-B-1204", PROBLEMS: "MC-B-1205"}
 
 
 @pytest.fixture
@@ -21,12 +23,13 @@ def client() -> Iterator[TestClient]:
         yield test_client
 
 
-def upload(client: TestClient, sample: str) -> dict[str, Any]:
-    """Upload a bundled sample and return the lease once the agent has finished.
+def upload(client: TestClient, sample: str, unit_id: str | None = None) -> dict[str, Any]:
+    """Add a bundled sample to a unit and return the lease once the agent has finished.
 
     The test client runs background tasks before returning, so one fetch is enough.
     """
-    created = client.post("/leases", data={"sample": sample})
+    data = {"sample": sample, "unit_id": unit_id or UNIT_OF[sample]}
+    created = client.post("/leases", data=data)
     assert created.status_code == 202
     assert created.json()["status"] == "PROCESSING"
     return client.get(f"/leases/{created.json()['id']}").json()
@@ -166,10 +169,27 @@ def test_failing_rules_must_be_acknowledged_before_activation(client: TestClient
     assert "Rules still need a decision" in response.json()["detail"]
 
 
+def test_a_lease_belongs_to_the_unit_it_was_added_to(client: TestClient) -> None:
+    lease = upload(client, CLEAN, unit_id="MC-B-0902")
+
+    assert lease["unit_id"] == "MC-B-0902"
+    [r7] = [rule for rule in lease["rules"] if rule["id"] == "R7"]
+    assert r7["outcome"] == "FAIL"
+    assert "names unit MC-B-1204, but it was added to MC-B-0902" in r7["reason"]
+
+
+def test_a_lease_needs_a_unit_in_the_records(client: TestClient) -> None:
+    unknown = client.post("/leases", data={"sample": CLEAN, "unit_id": "MC-Z-0000"})
+    missing = client.post("/leases", data={"sample": CLEAN})
+
+    assert unknown.status_code == 404
+    assert missing.status_code == 422
+
+
 def test_agent_failure_is_recorded_on_the_lease(client: TestClient) -> None:
     files = {"file": ("other.txt", b"A lease the demo has never seen.", "text/plain")}
 
-    created = client.post("/leases", files=files).json()
+    created = client.post("/leases", files=files, data={"unit_id": "MC-B-1204"}).json()
     lease = client.get(f"/leases/{created['id']}").json()
 
     assert lease["status"] == "FAILED"
@@ -177,13 +197,15 @@ def test_agent_failure_is_recorded_on_the_lease(client: TestClient) -> None:
 
 
 def test_empty_document_is_refused(client: TestClient) -> None:
-    response = client.post("/leases", files={"file": ("blank.txt", b"   ", "text/plain")})
+    files = {"file": ("blank.txt", b"   ", "text/plain")}
+    response = client.post("/leases", files=files, data={"unit_id": "MC-B-1204"})
 
     assert response.status_code == 422
 
 
 def test_sample_name_cannot_leave_the_samples_folder(client: TestClient) -> None:
-    response = client.post("/leases", data={"sample": "../../data/units.json"})
+    data = {"sample": "../../data/units.json", "unit_id": "MC-B-1204"}
+    response = client.post("/leases", data=data)
 
     assert response.status_code == 404
 

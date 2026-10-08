@@ -71,6 +71,8 @@ class RuleContext:
     escalation: EscalationAssessment | None
     # The unit this lease already occupies, once a person has activated it.
     occupied_unit_id: str | None = None
+    # The unit a person added this lease to; the lease's own wording must name it.
+    lease_unit_id: str | None = None
 
     def number(self, name: str) -> float | None:
         value = self.fields[name].value
@@ -102,9 +104,10 @@ def evaluate_rules(
     units: list[Unit],
     escalation: EscalationAssessment | None = None,
     occupied_unit_id: str | None = None,
+    lease_unit_id: str | None = None,
 ) -> list[RuleResult]:
     context = RuleContext(
-        {field.name: field for field in fields}, units, escalation, occupied_unit_id
+        {field.name: field for field in fields}, units, escalation, occupied_unit_id, lease_unit_id
     )
     return [_evaluate(rule, context) for rule in ruleset]
 
@@ -226,6 +229,10 @@ def _unit_exists_and_is_available(c: RuleContext) -> Verdict:
         return _unknown(f'"{reference}" matches several units: {ids}.')
 
     unit = matches[0]
+    if c.lease_unit_id is not None and unit.unit_id != c.lease_unit_id:
+        return _failed(
+            f"The lease names unit {unit.unit_id}, but it was added to {c.lease_unit_id}."
+        )
     if unit.unit_id == c.occupied_unit_id:
         # Rules are recomputed on every read; an active lease must not fail
         # because of the occupancy it created itself.

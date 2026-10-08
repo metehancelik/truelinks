@@ -2,28 +2,34 @@
 
 import { useState } from "react";
 import { api, errorMessage, label, type Decision, type Lease, type LeaseField, type Rule } from "@/lib/api";
-import { Badge, Button, Card, inputClass, Notice, Trace } from "./ui";
+import { Badge, Button, Card, inputClass, Notice, Spinner, Trace } from "./ui";
 
 /** A lease record: what the agent read, where it read it, and what a person decided. */
-export function LeaseCard({ lease, onChange }: { lease: Lease; onChange: () => void }) {
+export function LeaseCard({ lease, onChange }: { lease: Lease; onChange: () => Promise<void> | void }) {
   const [error, setError] = useState<string | null>(null);
+  // The action in flight, by key: its button shows a spinner and every other action waits.
+  const [pending, setPending] = useState<string | null>(null);
   const reviewing = lease.status === "IN_REVIEW";
+  const busy = pending !== null;
 
   /** Runs a decision; the API's refusal (and its reason) is shown as it is. */
-  const act = async (action: () => Promise<unknown>) => {
+  const act = async (key: string, action: () => Promise<unknown>) => {
+    setPending(key);
     try {
       await action();
       setError(null);
     } catch (problem) {
       setError(errorMessage(problem));
     }
-    onChange();
+    // Keep the spinner until the card shows the new state, not just until the API answered.
+    await onChange();
+    setPending(null);
   };
 
   // Fields that passed every check and still wait for a person: safe to accept in one go.
   const verifiedPending = lease.fields.filter((field) => field.status === "VERIFIED" && field.decision === "PENDING");
   const acceptVerified = () =>
-    act(async () => {
+    act("accept-verified", async () => {
       for (const field of verifiedPending) await api.decideField(lease.id, field.name, "ACCEPTED");
     });
 
@@ -34,14 +40,19 @@ export function LeaseCard({ lease, onChange }: { lease: Lease; onChange: () => v
         <>
           <Badge>{lease.status}</Badge>
           {reviewing && verifiedPending.length > 0 && (
-            <Button onClick={acceptVerified}>Accept {verifiedPending.length} verified fields</Button>
+            <Button disabled={busy} onClick={acceptVerified}>
+              {pending === "accept-verified" && <Spinner />}
+              Accept {verifiedPending.length} verified fields
+            </Button>
           )}
           {reviewing && (
             <>
-              <Button variant="primary" onClick={() => act(() => api.activateLease(lease.id))}>
+              <Button variant="primary" disabled={busy} onClick={() => act("activate", () => api.activateLease(lease.id))}>
+                {pending === "activate" && <Spinner />}
                 Activate lease
               </Button>
-              <Button variant="danger" onClick={() => act(() => api.rejectLease(lease.id))}>
+              <Button variant="danger" disabled={busy} onClick={() => act("reject", () => api.rejectLease(lease.id))}>
+                {pending === "reject" && <Spinner />}
                 Reject lease
               </Button>
             </>
@@ -96,7 +107,11 @@ export function LeaseCard({ lease, onChange }: { lease: Lease; onChange: () => v
                   key={field.name}
                   field={field}
                   editable={reviewing}
-                  decide={(decision, value) => act(() => api.decideField(lease.id, field.name, decision, value))}
+                  busy={busy}
+                  pending={pending?.startsWith(`field:${field.name}:`) ? (pending.split(":")[2] as Decision) : null}
+                  decide={(decision, value) =>
+                    act(`field:${field.name}:${decision}`, () => api.decideField(lease.id, field.name, decision, value))
+                  }
                 />
               ))}
             </tbody>
@@ -113,7 +128,9 @@ export function LeaseCard({ lease, onChange }: { lease: Lease; onChange: () => v
                 key={rule.id}
                 rule={rule}
                 editable={reviewing}
-                decide={(decision) => act(() => api.decideRule(lease.id, rule.id, decision))}
+                busy={busy}
+                pending={pending?.startsWith(`rule:${rule.id}:`) ? (pending.split(":")[2] as Decision) : null}
+                decide={(decision) => act(`rule:${rule.id}:${decision}`, () => api.decideRule(lease.id, rule.id, decision))}
               />
             ))}
           </ul>
@@ -128,14 +145,28 @@ export function LeaseCard({ lease, onChange }: { lease: Lease; onChange: () => v
 function FieldRow({
   field,
   editable,
+  busy,
+  pending,
   decide,
 }: {
   field: LeaseField;
   editable: boolean;
-  decide: (decision: Decision, value?: string) => void;
+  busy: boolean;
+  pending: Decision | null;
+  decide: (decision: Decision, value?: string) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
+  // A decided field shows its decision; its buttons come back only when a person asks to change it.
+  const [changing, setChanging] = useState(false);
   const corrected = field.decision === "CORRECTED";
+  const decided = field.decision !== "PENDING";
+  const choosing = editable && draft === null && (!decided || changing);
+
+  const choose = async (decision: Decision, value?: string) => {
+    await decide(decision, value);
+    setChanging(false);
+    setDraft(null);
+  };
 
   return (
     <tr className={`border-t border-zinc-100 align-top first:border-t-0 ${field.status === "UNVERIFIED" ? "bg-amber-50/40" : ""}`}>
@@ -167,21 +198,40 @@ function FieldRow({
         {field.explanation && <div className="mt-1 max-w-xs text-xs leading-relaxed text-zinc-600">{field.explanation}</div>}
       </td>
       <td className="py-3 pr-5">
-        {field.decision !== "PENDING" && <Badge>{field.decision}</Badge>}
-        {editable && draft === null && (
-          <div className="mt-1.5 flex gap-1.5 whitespace-nowrap first:mt-0">
-            <Button onClick={() => decide("ACCEPTED")}>Accept</Button>
-            <Button onClick={() => decide("REJECTED")}>Reject</Button>
-            <Button onClick={() => setDraft(String(field.corrected_value ?? field.value ?? ""))}>Correct</Button>
+        {decided && !choosing && draft === null && (
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <Badge>{field.decision}</Badge>
+            {editable && (
+              <ChangeButton disabled={busy} onClick={() => setChanging(true)} />
+            )}
+          </div>
+        )}
+        {choosing && (
+          <div className="flex gap-1.5 whitespace-nowrap">
+            <Button disabled={busy} onClick={() => choose("ACCEPTED")}>
+              {pending === "ACCEPTED" && <Spinner />}
+              Accept
+            </Button>
+            <Button disabled={busy} onClick={() => choose("REJECTED")}>
+              {pending === "REJECTED" && <Spinner />}
+              Reject
+            </Button>
+            <Button disabled={busy} onClick={() => setDraft(String(field.corrected_value ?? field.value ?? ""))}>
+              Correct
+            </Button>
+            {changing && (
+              <Button disabled={busy} onClick={() => setChanging(false)}>
+                Cancel
+              </Button>
+            )}
           </div>
         )}
         {editable && draft !== null && (
           <form
-            className="mt-1.5 flex gap-1.5 first:mt-0"
+            className="flex gap-1.5"
             onSubmit={(event) => {
               event.preventDefault();
-              decide("CORRECTED", draft);
-              setDraft(null);
+              void choose("CORRECTED", draft);
             }}
           >
             <input
@@ -189,12 +239,14 @@ function FieldRow({
               aria-label={`Corrected ${label(field.name)}`}
               className={`${inputClass} h-8 w-40 py-0`}
               value={draft}
+              disabled={busy}
               onChange={(event) => setDraft(event.target.value)}
             />
-            <Button variant="primary" type="submit">
+            <Button variant="primary" type="submit" disabled={busy}>
+              {pending === "CORRECTED" && <Spinner />}
               Save
             </Button>
-            <Button type="button" onClick={() => setDraft(null)}>
+            <Button type="button" disabled={busy} onClick={() => setDraft(null)}>
               Cancel
             </Button>
           </form>
@@ -204,8 +256,29 @@ function FieldRow({
   );
 }
 
-function RuleRow({ rule, editable, decide }: { rule: Rule; editable: boolean; decide: (decision: Decision) => void }) {
+function RuleRow({
+  rule,
+  editable,
+  busy,
+  pending,
+  decide,
+}: {
+  rule: Rule;
+  editable: boolean;
+  busy: boolean;
+  pending: Decision | null;
+  decide: (decision: Decision) => Promise<void>;
+}) {
+  const [changing, setChanging] = useState(false);
   const flagged = rule.outcome !== "PASS";
+  const decided = rule.decision !== "PENDING";
+  const choosing = flagged && editable && (!decided || changing);
+
+  const choose = async (decision: Decision) => {
+    await decide(decision);
+    setChanging(false);
+  };
+
   return (
     <li className={`flex flex-wrap items-start gap-x-3 gap-y-2 px-4 py-3 text-sm ${flagged ? "bg-white" : "bg-zinc-50/60"}`}>
       <span className="w-7 pt-0.5 font-mono text-xs font-medium text-zinc-500">{rule.id}</span>
@@ -216,15 +289,45 @@ function RuleRow({ rule, editable, decide }: { rule: Rule; editable: boolean; de
           {rule.description} Severity: {rule.severity}.
         </div>
       </div>
-      {flagged && rule.decision !== "PENDING" && (
-        <Badge tone="gray">{rule.decision === "ACCEPTED" ? "ACKNOWLEDGED" : "DISMISSED"}</Badge>
+      {flagged && decided && !choosing && (
+        <div className="flex items-center gap-2 whitespace-nowrap">
+          <Badge tone="gray">{rule.decision === "ACCEPTED" ? "ACKNOWLEDGED" : "DISMISSED"}</Badge>
+          {editable && (
+            <ChangeButton disabled={busy} onClick={() => setChanging(true)} />
+          )}
+        </div>
       )}
-      {flagged && editable && (
+      {choosing && (
         <div className="flex gap-1.5">
-          <Button onClick={() => decide("ACCEPTED")}>Acknowledge</Button>
-          <Button onClick={() => decide("REJECTED")}>Dismiss</Button>
+          <Button disabled={busy} onClick={() => choose("ACCEPTED")}>
+            {pending === "ACCEPTED" && <Spinner />}
+            Acknowledge
+          </Button>
+          <Button disabled={busy} onClick={() => choose("REJECTED")}>
+            {pending === "REJECTED" && <Spinner />}
+            Dismiss
+          </Button>
+          {changing && (
+            <Button disabled={busy} onClick={() => setChanging(false)}>
+              Cancel
+            </Button>
+          )}
         </div>
       )}
     </li>
+  );
+}
+
+/** Reopens a decision that was already made. */
+function ChangeButton({ disabled, onClick }: { disabled: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="rounded text-xs font-medium text-zinc-500 underline decoration-zinc-300 underline-offset-4 hover:text-zinc-900 hover:decoration-zinc-900 disabled:opacity-40"
+    >
+      Change
+    </button>
   );
 }
