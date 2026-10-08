@@ -36,7 +36,12 @@ export function UnitView({ unitId }: { unitId: string }) {
 
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">Lease</h2>
-            {data.leases.length === 0 && (
+            {data.leases.length === 0 && data.unit.status === "occupied" && (
+              <p className="text-sm text-zinc-600">
+                Occupied according to the owner&apos;s records. No lease is on file for this unit yet.
+              </p>
+            )}
+            {data.leases.length === 0 && data.unit.status !== "occupied" && (
               <p className="text-sm text-zinc-600">
                 No lease is linked to this unit. Add one from the <Link href="/" className="underline">units page</Link>.
               </p>
