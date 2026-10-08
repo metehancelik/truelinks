@@ -12,3 +12,6 @@ backend/uploads/
 
 # macOS
 .DS_Store
+
+# Context file for local design tooling, not part of the submission
+PRODUCT.md
