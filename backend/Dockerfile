@@ -20,6 +20,11 @@ RUN uv sync --locked --no-dev
 # Runtime stage: no uv, no build tools, non-root user.
 FROM python:3.13-slim-bookworm AS runner
 
+# Tesseract reads scanned leases (PDFs without a text layer).
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN useradd --system --uid 1001 --no-create-home app
 
 WORKDIR /app

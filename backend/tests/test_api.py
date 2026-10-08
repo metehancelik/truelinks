@@ -59,7 +59,13 @@ def test_clean_lease_is_ready_for_review_and_linked_to_its_unit(client: TestClie
     assert lease["status"] == "IN_REVIEW"
     assert lease["unit_id"] == "MC-B-1204"
     assert set(outcomes(lease).values()) == {"PASS"}
-    assert [step["name"] for step in lease["trace"]] == ["extract", "verify", "review", "rules"]
+    assert [step["name"] for step in lease["trace"]] == [
+        "read: text",
+        "extract",
+        "verify",
+        "review",
+        "rules",
+    ]
 
 
 def test_unit_page_shows_its_lease(client: TestClient) -> None:

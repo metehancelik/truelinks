@@ -11,9 +11,11 @@ from truelinks.modules.lease.extraction import LEASE_EXTRACT_TASK
 from truelinks.modules.lease.pipeline import LeaseAnalysis, analyse_lease
 from truelinks.modules.lease.review import LEASE_REVIEW_TASK
 from truelinks.modules.lease.rules import Outcome, load_ruleset
+from truelinks.modules.lease.signatures import LEASE_SIGNATURES_TASK
 from truelinks.modules.lease.verification import FieldStatus, VerificationIssue
 from truelinks.modules.unit.records import load_units
 from truelinks.platform.llm.stub import StubProvider
+from truelinks.platform.llm.types import LLMImage
 
 ROOT = Path(__file__).parents[2]
 RULESET = load_ruleset(ROOT / "data" / "owner_ruleset.json")
@@ -140,3 +142,37 @@ def test_every_step_is_traced_and_only_model_steps_name_a_model() -> None:
 
     assert [step.name for step in trace] == ["extract", "verify", "review", "rules"]
     assert [step.model for step in trace] == ["stub", None, "stub", None]
+
+
+def test_on_a_scan_the_signature_page_decides_the_signatures_and_a_person_confirms() -> None:
+    llm = (
+        StubProvider()
+        .register(LEASE_EXTRACT_TASK, lambda _: EXTRACTION)
+        .register(LEASE_REVIEW_TASK, lambda _: CLEAN_REVIEW)
+        .register(
+            LEASE_SIGNATURES_TASK,
+            lambda request: {
+                "landlord_signed": len(request.images) == 1,
+                "tenant_signed": False,
+                "explanation": "The landlord line is signed; the tenant line is empty.",
+            },
+        )
+    )
+    page = LLMImage(media_type="image/png", data=b"not a real page")
+
+    analysis = asyncio.run(analyse_lease(llm, LEASE, RULESET, UNITS, page))
+
+    signed = {f.name: f for f in analysis.fields if f.name.endswith("_signed")}
+    assert signed["landlord_signed"].value is True
+    assert signed["tenant_signed"].value is False
+    # A judgement on an image cannot be checked by code, so a person confirms it.
+    assert {f.status for f in signed.values()} == {FieldStatus.UNVERIFIED}
+    assert "signature page" in (signed["tenant_signed"].explanation or "")
+    assert next(r for r in analysis.rules if r.rule.id == "R5").outcome is Outcome.FAIL
+    assert [step.name for step in analysis.trace] == [
+        "extract",
+        "verify",
+        "review",
+        "signatures",
+        "rules",
+    ]

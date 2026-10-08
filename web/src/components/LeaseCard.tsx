@@ -54,6 +54,24 @@ export function LeaseCard({ lease, onChange }: { lease: Lease; onChange: () => v
         <Notice tone="info">The agent is reading this lease. A local model needs a minute or two.</Notice>
       )}
       {lease.status === "FAILED" && <Notice tone="error">The agent could not process this lease: {lease.error}</Notice>}
+      {lease.trace.some((step) => step.name === "read: ocr") && (
+        <Notice tone="info">
+          This lease is a scan and was read with OCR. A misread character shows up as an unverified field, so check those against
+          the original.
+        </Notice>
+      )}
+      {lease.trace.some((step) => step.name === "signatures") && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-zinc-700">Signature page the vision model checked</summary>
+          {/* Served by the API from the uploads volume, so next/image has nothing to optimise. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={api.signaturePageUrl(lease.id)}
+            alt="Last page of the scanned lease"
+            className="mt-2 max-h-[32rem] rounded border border-zinc-200"
+          />
+        </details>
+      )}
       {reviewing && !lease.unit_id && (
         <Notice tone="error">
           This lease is not linked to a unit. Correct the unit reference so it names one unit in the records.

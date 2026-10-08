@@ -7,10 +7,12 @@ field updates every rule that depends on it at once.
 
 from dataclasses import asdict
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from truelinks.modules.lease.documents import Document, signature_page_path
 from truelinks.modules.lease.models import Decision, LeaseFieldRow, LeaseRow, LeaseStatus
 from truelinks.modules.lease.pipeline import analyse_lease
 from truelinks.modules.lease.rules import (
@@ -24,7 +26,8 @@ from truelinks.modules.lease.schema import parse_field_value, to_json_value
 from truelinks.modules.lease.verification import FieldStatus, VerificationIssue, VerifiedField
 from truelinks.modules.unit.models import get_unit, list_units
 from truelinks.modules.unit.records import find_units
-from truelinks.platform.llm.types import LLMProvider
+from truelinks.platform.llm.types import LLMImage, LLMProvider
+from truelinks.platform.trace import StepTrace
 
 UNIT_REFERENCE = "unit_reference"
 
@@ -33,22 +36,37 @@ class LeaseActionError(Exception):
     """A person asked for something the lease's current state does not allow."""
 
 
-def create_lease(session: Session, tenant_id: str, filename: str, text: str) -> LeaseRow:
-    lease = LeaseRow(tenant_id=tenant_id, filename=filename, text=text)
+def create_lease(
+    session: Session, tenant_id: str, filename: str, document: Document, uploads_dir: Path
+) -> LeaseRow:
+    # Reading is the first step of the trace, so a lease read by OCR says so.
+    read = StepTrace(f"read: {document.method}", None, document.duration_ms)
+    lease = LeaseRow(
+        tenant_id=tenant_id, filename=filename, text=document.text, trace=[asdict(read)]
+    )
     session.add(lease)
+    session.flush()
+    if document.signature_page is not None:
+        signature_page_path(uploads_dir, lease.id).write_bytes(document.signature_page)
     session.commit()
     return lease
 
 
 async def process_lease(
-    session: Session, llm: LLMProvider, ruleset: list[Rule], lease_id: str
+    session: Session, llm: LLMProvider, ruleset: list[Rule], lease_id: str, uploads_dir: Path
 ) -> None:
     """Run the lease agent and store its answer for review."""
     lease = session.get_one(LeaseRow, lease_id)
     units = [row.to_unit() for row in list_units(session, lease.tenant_id)]
+    page_path = signature_page_path(uploads_dir, lease.id)
+    signature_page = (
+        LLMImage(media_type="image/png", data=page_path.read_bytes())
+        if page_path.is_file()
+        else None
+    )
 
     try:
-        analysis = await analyse_lease(llm, lease.text, ruleset, units)
+        analysis = await analyse_lease(llm, lease.text, ruleset, units, signature_page)
     except Exception as error:  # the job boundary: record the failure, do not lose it
         lease.status = LeaseStatus.FAILED
         lease.error = str(error)
@@ -68,7 +86,7 @@ async def process_lease(
         for position, field in enumerate(analysis.fields)
     ]
     lease.escalation = asdict(analysis.escalation) if analysis.escalation else None
-    lease.trace = [asdict(step) for step in analysis.trace]
+    lease.trace = [*lease.trace, *(asdict(step) for step in analysis.trace)]
     lease.status = LeaseStatus.IN_REVIEW
     _match_unit(session, lease)
     session.commit()

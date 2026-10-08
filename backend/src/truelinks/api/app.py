@@ -25,7 +25,11 @@ from truelinks.modules.issue.demo import register_demo_issues
 from truelinks.modules.issue.models import IssueRow, WorkOrderRow
 from truelinks.modules.lease import service
 from truelinks.modules.lease.demo import register_demo_leases
-from truelinks.modules.lease.documents import UnreadableDocumentError, read_document
+from truelinks.modules.lease.documents import (
+    UnreadableDocumentError,
+    read_document,
+    signature_page_path,
+)
 from truelinks.modules.lease.models import LeaseRow, LeaseStatus
 from truelinks.modules.lease.rules import Rule, load_ruleset
 from truelinks.modules.unit.models import UnitRow, get_unit, list_units, seed_units
@@ -103,7 +107,9 @@ def _lease_out(session: Session, container: Container, lease: LeaseRow) -> Lease
 
 async def _process(container: Container, lease_id: str) -> None:
     with container.sessions() as session:
-        await service.process_lease(session, container.llm, container.ruleset, lease_id)
+        await service.process_lease(
+            session, container.llm, container.ruleset, lease_id, container.settings.uploads_dir
+        )
 
 
 async def _process_issue(container: Container, issue_id: str) -> None:
@@ -269,13 +275,29 @@ def _add_routes(app: FastAPI) -> None:
             raise HTTPException(422, "Send a file or name a sample.")
 
         try:
-            text = read_document(filename, content)
+            document = read_document(filename, content)
         except UnreadableDocumentError as error:
             raise HTTPException(422, str(error)) from error
 
-        row = service.create_lease(session, container.settings.tenant_id, filename, text)
+        row = service.create_lease(
+            session,
+            container.settings.tenant_id,
+            filename,
+            document,
+            container.settings.uploads_dir,
+        )
         background.add_task(_process, container, row.id)
         return _lease_out(session, container, row)
+
+    @app.get("/leases/{lease_id}/signature-page")
+    def signature_page(lease_id: str, session: Db, container: Ctx) -> FileResponse:  # pyright: ignore[reportUnusedFunction]
+        """The scanned page the vision model checked the signatures on."""
+        path = signature_page_path(
+            container.settings.uploads_dir, _lease(session, container, lease_id).id
+        )
+        if not path.is_file():
+            raise HTTPException(404, "This lease has no scanned signature page.")
+        return FileResponse(path, media_type="image/png")
 
     @app.post("/leases/{lease_id}/fields/{name}/decision")
     def decide_field(  # pyright: ignore[reportUnusedFunction]

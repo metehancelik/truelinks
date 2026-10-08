@@ -16,9 +16,10 @@ from truelinks.modules.lease.rules import (
     RuleResult,
     evaluate_rules,
 )
+from truelinks.modules.lease.signatures import apply_signatures, check_signatures
 from truelinks.modules.lease.verification import VerifiedField, verify_extraction
 from truelinks.modules.unit.records import Unit
-from truelinks.platform.llm.types import LLMProvider
+from truelinks.platform.llm.types import LLMImage, LLMProvider
 from truelinks.platform.trace import StepTrace, code_step, model_step
 
 
@@ -32,7 +33,11 @@ class LeaseAnalysis:
 
 
 async def analyse_lease(
-    llm: LLMProvider, lease_text: str, ruleset: list[Rule], units: list[Unit]
+    llm: LLMProvider,
+    lease_text: str,
+    ruleset: list[Rule],
+    units: list[Unit],
+    signature_page: LLMImage | None = None,
 ) -> LeaseAnalysis:
     trace: list[StepTrace] = []
 
@@ -49,6 +54,12 @@ async def analyse_lease(
     review = await review_lease(llm, lease_text, fields, escalation_rule)
     trace.append(model_step("review", review))
     fields = apply_concerns(fields, review.data.concerns)
+
+    if signature_page is not None:
+        # A scan: its text cannot show a handwritten signature, the page can.
+        signatures = await check_signatures(llm, signature_page)
+        trace.append(model_step("signatures", signatures))
+        fields = apply_signatures(fields, signatures.data)
 
     started = time.perf_counter()
     rules = evaluate_rules(ruleset, fields, units, review.data.escalation)

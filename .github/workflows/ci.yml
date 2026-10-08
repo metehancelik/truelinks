@@ -12,6 +12,8 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v5
+      # The OCR tests need Tesseract; they are skipped where it is missing.
+      - run: sudo apt-get update && sudo apt-get install --yes tesseract-ocr
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true

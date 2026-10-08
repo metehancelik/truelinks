@@ -133,6 +133,7 @@ export const api = {
   ) => post<Issue>(`/work-orders/${workOrderId}/decision`, { decision, ...edits }),
 
   photoUrl: (issueId: string, photo: number) => `/api/issues/${issueId}/photos/${photo}`,
+  signaturePageUrl: (leaseId: string) => `/api/leases/${leaseId}/signature-page`,
 };
 
 export function errorMessage(error: unknown): string {
