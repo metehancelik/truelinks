@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api, errorMessage, type Decision, type Issue, type WorkOrder } from "@/lib/api";
-import { Badge, Button, Card, Notice, Spinner, Trace } from "./ui";
+import { Badge, Button, Card, inputClass, Notice, Spinner, Trace } from "./ui";
 
 const FLAG_TEXT: Record<string, string> = {
   INVALID_PHOTO_REFERENCE: "A finding points at a photo that was not sent. Check the assessment against the photos.",
@@ -27,13 +27,13 @@ export function IssueCard({ issue, onChange }: { issue: Issue; onChange: () => v
 
       <div className="flex flex-wrap gap-3">
         {photos.map((photo) => (
-          <figure key={photo} className="text-center text-xs text-zinc-500">
+          <figure key={photo} className="space-y-1.5 text-xs text-zinc-500">
             {/* Served by the API from the uploads volume, so next/image has nothing to optimise. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={api.photoUrl(issue.id, photo)}
               alt={`Reported photo ${photo}`}
-              className="h-32 w-32 rounded border border-zinc-200 object-cover"
+              className="h-28 w-28 rounded-lg bg-zinc-100 object-cover ring-1 ring-zinc-200 sm:h-32 sm:w-32"
             />
             <figcaption>Photo {photo}</figcaption>
           </figure>
@@ -41,12 +41,12 @@ export function IssueCard({ issue, onChange }: { issue: Issue; onChange: () => v
       </div>
 
       {issue.assessment && (
-        <div className="grid gap-4 text-sm md:grid-cols-2">
+        <div className="grid gap-6 text-sm md:grid-cols-2">
           <div>
-            <h3 className="mb-1 font-semibold">
+            <h3 className="mb-2 flex items-center gap-2 font-semibold text-zinc-900">
               Condition <Badge>{issue.assessment.overall_condition}</Badge>
             </h3>
-            <ul className="list-disc space-y-1 pl-5">
+            <ul className="list-disc space-y-1.5 pl-5 leading-relaxed marker:text-zinc-400">
               {issue.assessment.damages.map((damage, index) => (
                 <li key={index}>
                   {damage.description} <span className="text-zinc-500">(photo {damage.photo})</span>
@@ -56,10 +56,10 @@ export function IssueCard({ issue, onChange }: { issue: Issue; onChange: () => v
             </ul>
           </div>
           <div>
-            <h3 className="mb-1 font-semibold">Contents and equipment</h3>
-            <ul className="space-y-1">
+            <h3 className="mb-2 font-semibold text-zinc-900">Contents and equipment</h3>
+            <ul className="space-y-1.5">
               {issue.assessment.equipment.map((item, index) => (
-                <li key={index}>
+                <li key={index} className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   {item.name} <Badge>{item.condition}</Badge> <span className="text-zinc-500">(photo {item.photo})</span>
                 </li>
               ))}
@@ -95,11 +95,11 @@ function WorkOrderForm({ workOrder, onChange }: { workOrder: WorkOrder; onChange
   };
 
   return (
-    <div className="space-y-2 rounded border border-zinc-200 bg-zinc-50 p-3 text-sm">
+    <div className={`space-y-3 rounded-lg border p-4 text-sm ${decided ? "border-zinc-200 bg-white" : "border-zinc-200 bg-zinc-50"}`}>
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="font-semibold">{decided ? "Work order" : "Draft work order"}</h3>
+        <h3 className="mr-1 font-semibold text-zinc-900">{decided ? "Work order" : "Draft work order"}</h3>
         <Badge>{workOrder.decision}</Badge>
-        <span>
+        <span className="inline-flex items-center gap-1.5 text-zinc-600">
           Urgency: <Badge>{workOrder.urgency}</Badge>
         </span>
         {edited && <span className="text-xs text-zinc-500">Edited. The agent wrote: “{workOrder.draft.title}”</span>}
@@ -108,21 +108,21 @@ function WorkOrderForm({ workOrder, onChange }: { workOrder: WorkOrder; onChange
       {decided ? (
         // A decided work order is a record of what was agreed, so it is no longer editable.
         <>
-          <p className="font-medium">{workOrder.title}</p>
-          <p className="whitespace-pre-wrap text-zinc-700">{workOrder.description}</p>
+          <p className="font-medium text-zinc-900">{workOrder.title}</p>
+          <p className="max-w-prose whitespace-pre-wrap leading-relaxed text-zinc-700">{workOrder.description}</p>
         </>
       ) : (
         <>
           <input
             aria-label="Work order title"
-            className="w-full rounded border border-zinc-300 bg-white px-2 py-1 font-medium"
+            className={`${inputClass} font-medium`}
             value={title}
             disabled={saving !== null}
             onChange={(event) => setTitle(event.target.value)}
           />
           <textarea
             aria-label="Work order description"
-            className="w-full rounded border border-zinc-300 bg-white px-2 py-1"
+            className={`${inputClass} leading-relaxed`}
             rows={3}
             value={description}
             disabled={saving !== null}

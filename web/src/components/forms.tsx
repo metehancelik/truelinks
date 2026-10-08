@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { api, errorMessage } from "@/lib/api";
-import { Button, Card, Notice } from "./ui";
+import { Button, Card, fileInputClass, inputClass, Notice } from "./ui";
 
 /** Upload a lease, or run one of the bundled samples. */
 export function UploadLease({ onDone }: { onDone: () => void }) {
@@ -42,18 +42,18 @@ export function UploadLease({ onDone }: { onDone: () => void }) {
   return (
     <Card title="Add a lease">
       {error && <Notice tone="error">{error}</Notice>}
-      <form onSubmit={upload} className="flex flex-wrap items-center gap-2 text-sm">
-        <input name="file" type="file" accept=".pdf,.txt" required aria-label="Lease document" />
+      <form onSubmit={upload} className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+        <input name="file" type="file" accept=".pdf,.txt" required aria-label="Lease document" className={fileInputClass} />
         <Button variant="primary" type="submit">
           Upload
         </Button>
         <span className="text-zinc-500">PDF with a text layer, or plain text.</span>
       </form>
       {samples.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-zinc-600">Or try a sample:</span>
+        <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-4 text-sm">
+          <span className="mr-1 text-zinc-600">Or try a sample:</span>
           {samples.map((name) => (
-            <Button key={name} onClick={() => runSample(name)}>
+            <Button key={name} className="font-mono text-xs" onClick={() => runSample(name)}>
               {name}
             </Button>
           ))}
@@ -83,16 +83,16 @@ export function ReportIssue({ unitId, onDone }: { unitId: string; onDone: () => 
   return (
     <Card title="Report an issue">
       {error && <Notice tone="error">{error}</Notice>}
-      <form onSubmit={submit} className="space-y-2 text-sm">
+      <form onSubmit={submit} className="space-y-3 text-sm">
         <textarea
           name="note"
           rows={2}
           placeholder="What is wrong? For example: the AC is dripping water down the wall."
           aria-label="What is wrong"
-          className="w-full rounded border border-zinc-300 px-2 py-1"
+          className={inputClass}
         />
-        <div className="flex flex-wrap items-center gap-2">
-          <input name="photos" type="file" accept="image/*" multiple required aria-label="Photos" />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <input name="photos" type="file" accept="image/*" multiple required aria-label="Photos" className={fileInputClass} />
           <Button variant="primary" type="submit">
             Send report
           </Button>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api, errorMessage, label, type Decision, type Lease, type LeaseField, type Rule } from "@/lib/api";
-import { Badge, Button, Card, Notice, Trace } from "./ui";
+import { Badge, Button, Card, inputClass, Notice, Trace } from "./ui";
 
 /** A lease record: what the agent read, where it read it, and what a person decided. */
 export function LeaseCard({ lease, onChange }: { lease: Lease; onChange: () => void }) {
@@ -61,15 +61,15 @@ export function LeaseCard({ lease, onChange }: { lease: Lease; onChange: () => v
       )}
 
       {lease.fields.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs uppercase text-zinc-500">
-              <tr>
-                <th className="py-2 pr-3">Field</th>
-                <th className="pr-3">Value</th>
-                <th className="pr-3">Source in the lease</th>
-                <th className="pr-3">Check</th>
-                <th>Your decision</th>
+        <div className="-mx-5 overflow-x-auto">
+          <table className="w-full min-w-[52rem] text-left text-sm">
+            <thead className="text-[11px] uppercase tracking-wide text-zinc-500">
+              <tr className="border-b border-zinc-200">
+                <th className="w-[11rem] pb-2 pl-5 pr-4 font-medium">Field</th>
+                <th className="pb-2 pr-4 font-medium">Value</th>
+                <th className="pb-2 pr-4 font-medium">Source in the lease</th>
+                <th className="pb-2 pr-4 font-medium">Check</th>
+                <th className="pb-2 pr-5 font-medium">Your decision</th>
               </tr>
             </thead>
             <tbody>
@@ -88,8 +88,8 @@ export function LeaseCard({ lease, onChange }: { lease: Lease; onChange: () => v
 
       {lease.rules.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-semibold">Owner rules</h3>
-          <ul className="space-y-2">
+          <h3 className="mb-3 text-sm font-semibold text-zinc-900">Owner rules</h3>
+          <ul className="divide-y divide-zinc-100 overflow-hidden rounded-lg border border-zinc-200">
             {lease.rules.map((rule) => (
               <RuleRow
                 key={rule.id}
@@ -120,24 +120,38 @@ function FieldRow({
   const corrected = field.decision === "CORRECTED";
 
   return (
-    <tr className="border-t border-zinc-100 align-top">
-      <td className="py-2 pr-3 font-medium">{label(field.name)}</td>
-      <td className="pr-3">
-        <span className={corrected || field.decision === "REJECTED" ? "text-zinc-400 line-through" : ""}>
+    <tr className={`border-t border-zinc-100 align-top first:border-t-0 ${field.status === "UNVERIFIED" ? "bg-amber-50/40" : ""}`}>
+      <td className="py-3 pl-5 pr-4 font-medium text-zinc-700">{label(field.name)}</td>
+      <td className="py-3 pr-4">
+        <span
+          className={
+            corrected || field.decision === "REJECTED"
+              ? "text-zinc-500 line-through"
+              : field.value === null
+                ? "italic text-zinc-500"
+                : "text-zinc-900"
+          }
+        >
           {field.value === null ? "not found" : String(field.value)}
         </span>
-        {corrected && <div className="font-medium">{String(field.corrected_value)}</div>}
+        {corrected && <div className="font-medium text-zinc-900">{String(field.corrected_value)}</div>}
       </td>
-      <td className="max-w-[16rem] pr-3 text-zinc-600">{field.quote ? <q>{field.quote}</q> : ""}</td>
-      <td className="pr-3">
+      <td className="max-w-[16rem] py-3 pr-4">
+        {field.quote && (
+          <q className="block border-l border-zinc-300 pl-2.5 text-[13px] leading-snug text-zinc-600">{field.quote}</q>
+        )}
+      </td>
+      <td className="py-3 pr-4">
         <Badge>{field.status}</Badge>
-        {field.issue && <div className="mt-1 text-xs text-amber-900">{field.issue.replaceAll("_", " ").toLowerCase()}</div>}
-        {field.explanation && <div className="mt-1 max-w-xs text-xs text-zinc-600">{field.explanation}</div>}
+        {field.issue && (
+          <div className="mt-1.5 text-xs font-medium text-amber-900">{field.issue.replaceAll("_", " ").toLowerCase()}</div>
+        )}
+        {field.explanation && <div className="mt-1 max-w-xs text-xs leading-relaxed text-zinc-600">{field.explanation}</div>}
       </td>
-      <td>
+      <td className="py-3 pr-5">
         {field.decision !== "PENDING" && <Badge>{field.decision}</Badge>}
         {editable && draft === null && (
-          <div className="mt-1 flex gap-1 whitespace-nowrap">
+          <div className="mt-1.5 flex gap-1.5 whitespace-nowrap first:mt-0">
             <Button onClick={() => decide("ACCEPTED")}>Accept</Button>
             <Button onClick={() => decide("REJECTED")}>Reject</Button>
             <Button onClick={() => setDraft(String(field.corrected_value ?? field.value ?? ""))}>Correct</Button>
@@ -145,7 +159,7 @@ function FieldRow({
         )}
         {editable && draft !== null && (
           <form
-            className="mt-1 flex gap-1"
+            className="mt-1.5 flex gap-1.5 first:mt-0"
             onSubmit={(event) => {
               event.preventDefault();
               decide("CORRECTED", draft);
@@ -155,7 +169,7 @@ function FieldRow({
             <input
               autoFocus
               aria-label={`Corrected ${label(field.name)}`}
-              className="w-40 rounded border border-zinc-300 px-2 py-1 text-sm"
+              className={`${inputClass} h-8 w-40 py-0`}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
             />
@@ -175,12 +189,12 @@ function FieldRow({
 function RuleRow({ rule, editable, decide }: { rule: Rule; editable: boolean; decide: (decision: Decision) => void }) {
   const flagged = rule.outcome !== "PASS";
   return (
-    <li className="flex flex-wrap items-start gap-3 rounded border border-zinc-100 px-3 py-2 text-sm">
-      <span className="w-8 font-mono font-medium">{rule.id}</span>
+    <li className={`flex flex-wrap items-start gap-x-3 gap-y-2 px-4 py-3 text-sm ${flagged ? "bg-white" : "bg-zinc-50/60"}`}>
+      <span className="w-7 pt-0.5 font-mono text-xs font-medium text-zinc-500">{rule.id}</span>
       <Badge>{rule.outcome}</Badge>
-      <div className="min-w-0 flex-1">
-        <div>{rule.reason}</div>
-        <div className="text-xs text-zinc-500">
+      <div className="min-w-[12rem] flex-1">
+        <div className={flagged ? "text-zinc-900" : "text-zinc-600"}>{rule.reason}</div>
+        <div className="mt-0.5 text-xs leading-relaxed text-zinc-500">
           {rule.description} Severity: {rule.severity}.
         </div>
       </div>
@@ -188,7 +202,7 @@ function RuleRow({ rule, editable, decide }: { rule: Rule; editable: boolean; de
         <Badge tone="gray">{rule.decision === "ACCEPTED" ? "ACKNOWLEDGED" : "DISMISSED"}</Badge>
       )}
       {flagged && editable && (
-        <div className="flex gap-1">
+        <div className="flex gap-1.5">
           <Button onClick={() => decide("ACCEPTED")}>Acknowledge</Button>
           <Button onClick={() => decide("REJECTED")}>Dismiss</Button>
         </div>
