@@ -17,6 +17,7 @@ Working log of decisions and experiments. Source material for the README.
 ## Model
 
 - **Local model: `gemma4:12b` via Ollama**, through the OpenAI-compatible API. Same adapter works with any OpenAI-compatible endpoint by changing env vars.
+- **Open weights because of privacy.** A lease carries names, ID references, rents and signatures; issue photos show the inside of people's homes. An open model running on the owner's own machine or cloud means no third party sees tenant data. Zero cost per call is a bonus, not the reason.
 - **Thinking off, temperature 0** for extraction. Measured on an M4 / 24 GB: the same prompt took 44 s with thinking on and 9.5 s with it off (~10 tokens/s either way).
 - **Context length set explicitly** (`OLLAMA_CONTEXT_LENGTH=16384`). Ollama defaults to 4096 and truncates silently, which would drop the end of a lease (signatures, termination).
 - **26b did not fit.** Loading 12b moves ~9 GB into wired memory; a 16 GB model leaves no headroom on 24 GB.
@@ -31,7 +32,7 @@ Working log of decisions and experiments. Source material for the README.
 - **A field is trusted only when the code checks and the evaluator both accept it.** An evaluator concern turns a `VERIFIED` field into `UNVERIFIED`, with the concern as the reason and the evaluator's sentence attached. The value is never rewritten. A field the code already rejected keeps its own, deterministic reason, and the evaluator may only raise the three issues that need judgement (`WRONG_SOURCE`, `CONTRADICTION`, `IMPLAUSIBLE`).
 - **A missing field never fails a rule.** "Not found by the model" is not "not in the lease", so the rule is `NOT_DETERMINABLE` and a person looks. A rule in the file with no code behind it is also `NOT_DETERMINABLE`, never a silent pass.
 - **The model reads, code calculates.** The term in months, and monthly versus annual rent, are extracted only as the lease states them. If the model derived one from the other, rules R4 and R6 could never fail.
-- **Signatures are a known blind spot.** In a scanned lease a signature is an image, which text extraction cannot see. R5 then returns `NOT_DETERMINABLE` and asks a person to check. Sending the signature page to the vision model is the fix.
+- **Signatures need eyes, not text.** In a scanned lease a signature is an image; OCR turned a hand-drawn signature into `PANS A Ae`. For scans the last page now goes to the vision model (see Documents). For text documents the signature is whatever the text says (`/s/ Name` or a blank line).
 
 ## Designed, not built yet: one bounded correction round
 
@@ -72,3 +73,42 @@ Tried Laya (open-weights decision model, served locally via `laya-serve`) as a s
 **Same four clauses with `gemma4:12b`** (thinking off, rule R2's own wording as the instruction): 4 of 4 correct, each with a one-sentence reason that names the mechanism or its absence. Slower (seconds per clause instead of milliseconds) and it gives no calibrated probability, but the answer is right and the reason is something a reviewer can read. Both prompts named "mutual agreement" as an undefined case, so the comparison is like for like.
 
 **Decision:** the evaluator runs on the LLM. Small sample, zero-shot. A fine-tuned checkpoint or a hosted decision model (Jev, same wire protocol) is the natural next step; the evaluator sits behind an interface so it can be swapped in. Not tried: Jev, because it is hosted and lease text would leave the machine.
+
+## Lease workflow
+
+- **Agents run in the background, the UI polls.** A local model needs a minute per lease, far too long to hold a request open. The upload returns at once with `PROCESSING`; the page asks again every 3 seconds. Trade-off: the job lives in the API process and is lost on a restart (see Scale in the README).
+- **Rules are recomputed on every read, never stored.** A person's correction changes the inputs, and every rule that depends on them updates at once. Nothing cached can go stale.
+- **Activation is the only place occupancy changes.** It requires every field decided, every non-passing rule acknowledged, and the unit to exist and be available. Uploading or matching a lease changes nothing on the unit.
+- **An active lease passes R7 on its own unit.** Found on the live app: after activation the unit is occupied by this very lease, and because rules are recomputed, the lease started failing "unit must be available". The rule now knows which unit the lease occupies.
+- **Occupied with no lease on file is a valid state.** The owner's records say two units are occupied; their leases were never uploaded. The data model allows it (activation implies occupied, not the reverse), and the unit page says so plainly instead of looking broken.
+
+## Multi-tenancy
+
+- **`tenant_id` on every row, units keyed by `(tenant_id, unit_id)`.** Two owners can both have `MC-B-1204`. Started with `unit_id` alone, which would have collided across owners; fixed before any real data existed.
+- **Isolation in the application, not yet in the database.** Every query filters by tenant. Row-level security in Postgres is the next step, so a forgotten filter cannot leak data.
+- **No migrations.** Tables are created on start. The composite-key change meant dropping tables on the server. Alembic comes before any real data.
+
+## Documents
+
+- **Text first, OCR only when there is no text.** A PDF with a text layer is read directly. A scan (no text layer) is rendered at 300 DPI and read by Tesseract.
+- **Tesseract, not the vision model, for the text.** A vision model transcribes by generating, so it can put words in the document that are not there, and the quote check would then compare the model with itself. Tesseract makes character mistakes instead, and those surface: OCR read "1 February" as "| February", so the date's quote no longer supports its value and the field goes to a person.
+- **Later: a document-specialised open vision model (Qwen-VL family) for OCR, with Tesseract kept as a second reader.** Needs a bigger machine than a 24 GB laptop already running the main model. Two independent readers that agree are stronger evidence than one.
+- **Signatures on scans are checked on the page by the vision model, and always come back `UNVERIFIED`.** Code cannot verify a judgement about an image, so a person confirms it, with the page on screen. Assumption: signatures are on the last page.
+- **Reading is the first step of the trace** (`read: text`, `read: pdf_text`, `read: ocr`), so a reviewer can see when a lease came from a scan.
+- **Known limit: OCR runs inside the upload request.** About 10 seconds a page, capped at 20 pages. Moves to the job queue together with the agents.
+
+## Issues
+
+- **Every finding names its photo, and code checks the number.** A finding that points at a photo that was not sent is flagged as possibly invented.
+- **"No visible damage" is enforced by code, not by the prompt.** On a clean kitchen photo with the note "oven is not heating" the model correctly invented nothing, but filled the damage list with "no visible damage", so the flag never fired. The check now also uses the overall condition.
+- **Urgency needs written criteria.** An old water stain came back as `high` because the prompt said "high for water leaks". Now: high for an active leak, an electrical fault or anything unsafe; medium for signs of an earlier leak or equipment that does not work; low for cosmetic wear.
+- **The agent's draft is kept when a person edits the work order.** What the agent proposed and what the person decided are both on record; the difference is evaluation data.
+- **A decided work order becomes read-only.** Before, it stayed editable after "accepted" and gave no feedback while saving. A decision is a record, not a draft.
+
+## Found by testing on the real model
+
+Unit tests run on the stub, so they prove the code path, not the model. Running the deployed app on `gemma4:12b` found four problems the 80+ unit tests could not: R7 on an active lease, the silent no-damage flag, urgency, and the editable decided work order. The R7 and no-damage fixes have unit tests; the urgency prompt and the UI change were checked by hand on the live app.
+
+What went right on the real model: 16 of 16 fields verified on the clean lease; the problem lease failed exactly the six rules it should; the AC photo was assessed correctly with no note at all; the kitchen photo produced no invented damage and the oven's brand was read off the door.
+
+What it showed about the evaluator: it did not flag the 24-month term against 18 months of dates. Rule R4 did. Arithmetic stays in code.
